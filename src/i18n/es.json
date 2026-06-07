@@ -1,0 +1,54 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "error_generic": "Algo salió mal. Inténtalo de nuevo.",
+    "required": "Campo obligatorio"
+  },
+  "auth": {
+    "login_title": "Iniciar sesión",
+    "signup_title": "Crear cuenta",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "email_placeholder": "tu@correo.com",
+    "password_placeholder": "Tu contraseña",
+    "login_button": "Entrar",
+    "signup_button": "Registrarme",
+    "google_button": "Continuar con Google",
+    "to_signup": "¿No tienes cuenta? Regístrate",
+    "to_login": "¿Ya tienes cuenta? Inicia sesión",
+    "logout": "Cerrar sesión",
+    "error_invalid_credentials": "Correo o contraseña incorrectos.",
+    "error_signup_failed": "No se pudo crear la cuenta.",
+    "check_email": "Revisa tu correo para confirmar la cuenta."
+  },
+  "tabs": {
+    "home": "Inicio",
+    "routines": "Rutinas",
+    "history": "Historial",
+    "settings": "Ajustes"
+  },
+  "home": {
+    "title": "Inicio",
+    "empty": "Aún no tienes un plan. Crea tu primera rutina."
+  },
+  "routines": {
+    "title": "Rutinas",
+    "empty": "No tienes rutinas todavía."
+  },
+  "history": {
+    "title": "Historial",
+    "empty": "Aquí verás tus entrenamientos.",
+    "sets_by_group": "Series por grupo muscular"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "unit": "Unidad de peso",
+    "failure_metric": "Métrica de esfuerzo por defecto",
+    "account": "Cuenta"
+  }
+}
