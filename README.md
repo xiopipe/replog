@@ -17,6 +17,16 @@ Mobile app to log strength training with a **hypertrophy** goal: plan routines a
 - `Roadmap.md` · `Backlog.md` · `Discussion-Decisions.md` — phases, ideas, and log.
 - `sql/01_schema.sql`, `sql/02_seed_exercises.sql` — database (Supabase).
 
+## Local development
+1. `npm install`
+2. Copy `.env.example` to `.env` and fill `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Supabase → Project Settings → API).
+3. `npm start` (dev client) — Android first.
+
+## Supabase
+Schema and seed live as migrations in `supabase/migrations/` and are applied to the
+production database via the **Supabase GitHub integration** (deploy on merge to `main`).
+Do not run the SQL by hand. The canonical specs remain in `docs/sql/`.
+
 ## MVP scope
 Plan routines + weekly plan, log workouts offline (weight/reps/RIR-RPE), history, PRs. **Out of scope:** AI/programming, nutrition, social, iOS, multiple plans.
 
