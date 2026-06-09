@@ -26,18 +26,8 @@ import { MultiSelect, type SelectOption } from '@/components/MultiSelect';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 import { createCustomExercise } from '@/features/catalog/queries';
+import { MUSCLE_KEYS } from '@/features/catalog/constants';
 import type { EquipmentEnum, MuscleEnum } from '@/db';
-
-const MUSCLE_KEYS: MuscleEnum[] = [
-  'chest',
-  'back',
-  'shoulders',
-  'arms',
-  'quads',
-  'hamstrings_glutes',
-  'calves',
-  'core',
-];
 
 const EQUIPMENT_KEYS: EquipmentEnum[] = [
   'barbell',
@@ -157,13 +147,13 @@ export default function CreateExerciseScreen() {
             onPress={handleSave}
             style={styles.headerButton}
             accessibilityRole="button"
-            accessibilityLabel={t('common.save')}
+            accessibilityLabel={t('create_exercise.save_button')}
             disabled={saving}
           >
             {saving ? (
               <ActivityIndicator color={colors.accent} size="small" />
             ) : (
-              <Text style={styles.saveText}>{t('common.save')}</Text>
+              <Text style={styles.saveText}>{t('create_exercise.save_button')}</Text>
             )}
           </Pressable>
         </View>
@@ -202,7 +192,12 @@ export default function CreateExerciseScreen() {
                 return (
                   <Pressable
                     key={opt.key}
-                    onPress={() => setCategory(opt.key as EquipmentEnum)}
+                    onPress={() => {
+                      const eq = opt.key as EquipmentEnum;
+                      setCategory(eq);
+                      // Bodyweight category chip also activates the isBodyweight flag
+                      if (eq === 'bodyweight') setIsBodyweight(true);
+                    }}
                     style={({ pressed }) => [
                       styles.singleChip,
                       isActive && styles.singleChipActive,

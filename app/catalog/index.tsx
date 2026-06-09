@@ -4,7 +4,7 @@
  */
 import { use$ } from '@legendapp/state/react';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -21,22 +21,12 @@ import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { SearchBar } from '@/components/SearchBar';
 import { EmptyState } from '@/components/EmptyState';
 import { globalExercises$, globalExerciseMuscles$ } from '@/db';
+import type { MuscleEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
 import { getFilteredExercises } from '@/features/catalog/queries';
 import { ExerciseRow } from '@/features/catalog/ExerciseRow';
-import type { MuscleEnum } from '@/db';
-
-const MUSCLE_KEYS: MuscleEnum[] = [
-  'chest',
-  'back',
-  'shoulders',
-  'arms',
-  'quads',
-  'hamstrings_glutes',
-  'calves',
-  'core',
-];
+import { MUSCLE_KEYS } from '@/features/catalog/constants';
 
 export default function CatalogScreen() {
   const { t } = useTranslation();
@@ -49,24 +39,31 @@ export default function CatalogScreen() {
   // Reactive reads — these re-render when the observable changes
   const globalExercises = use$(globalExercises$);
   const globalMuscles = use$(globalExerciseMuscles$);
-  const userExercises = use$(db?.userExercises$) ?? {};
-  const userMuscles = use$(db?.userExerciseMuscles$) ?? {};
-
-  const exercises = getFilteredExercises(
-    globalExercises ?? {},
-    userExercises,
-    globalMuscles ?? {},
-    userMuscles,
-    search,
-    filterMuscle,
-  );
+  const rawUserExercises = use$(db?.userExercises$);
+  const rawUserMuscles = use$(db?.userExerciseMuscles$);
 
   const isLoading = globalExercises === null || globalMuscles === null;
 
-  const chipOptions: ChipOption[] = [
-    { key: '__all__', label: t('catalog.all_muscles') },
-    ...MUSCLE_KEYS.map((m) => ({ key: m, label: t(`muscles.${m}`) })),
-  ];
+  const exercises = useMemo(
+    () =>
+      getFilteredExercises(
+        globalExercises ?? {},
+        rawUserExercises ?? {},
+        globalMuscles ?? {},
+        rawUserMuscles ?? {},
+        search,
+        filterMuscle,
+      ),
+    [globalExercises, rawUserExercises, globalMuscles, rawUserMuscles, search, filterMuscle],
+  );
+
+  const chipOptions: ChipOption[] = useMemo(
+    () => [
+      { key: '__all__', label: t('catalog.all_muscles') },
+      ...MUSCLE_KEYS.map((m) => ({ key: m, label: t(`muscles.${m}`) })),
+    ],
+    [t],
+  );
 
   const handleChipSelect = (key: string | null) => {
     if (!key || key === '__all__') {

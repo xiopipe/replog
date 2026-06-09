@@ -26,7 +26,7 @@ export function ExerciseRow({ exercise, onPress }: Props) {
       style={({ pressed }) => [styles.container, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={exercise.name}
-      accessibilityHint={t('catalog.title')}
+      accessibilityHint={t('catalog.row_hint')}
     >
       <View style={styles.left}>
         <Text style={styles.name} numberOfLines={1}>

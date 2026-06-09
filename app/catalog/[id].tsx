@@ -5,9 +5,10 @@
  */
 import { use$ } from '@legendapp/state/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,17 +40,37 @@ export default function ExerciseDetailScreen() {
 
   const globalExercises = use$(globalExercises$);
   const globalMuscles = use$(globalExerciseMuscles$);
-  const userExercises = use$(db?.userExercises$) ?? {};
-  const userMuscles = use$(db?.userExerciseMuscles$) ?? {};
+  const rawUserExercises = use$(db?.userExercises$);
+  const rawUserMuscles = use$(db?.userExerciseMuscles$);
 
-  const exercise =
-    (globalExercises ?? {})[id] ??
-    (userExercises)[id] ??
-    null;
+  const exercise = useMemo(
+    () =>
+      (globalExercises ?? {})[id] ??
+      (rawUserExercises ?? {})[id] ??
+      null,
+    [globalExercises, rawUserExercises, id],
+  );
 
-  const muscles = exercise
-    ? getMusclesForExercise(globalMuscles ?? {}, userMuscles, id)
-    : [];
+  const muscles = useMemo(
+    () =>
+      exercise
+        ? getMusclesForExercise(globalMuscles ?? {}, rawUserMuscles ?? {}, id)
+        : [],
+    [exercise, globalMuscles, rawUserMuscles, id],
+  );
+
+  // Show a loading indicator while the global observables haven't synced yet.
+  // Without this guard, a valid exercise id would falsely hit the not-found
+  // empty state because globalExercises/globalMuscles are null before first sync.
+  if (globalExercises == null || globalMuscles == null) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!exercise) {
     return (
@@ -68,7 +89,7 @@ export default function ExerciseDetailScreen() {
           </Text>
           <View style={styles.backButton} />
         </View>
-        <EmptyState message={t('catalog.error_load')} />
+        <EmptyState message={t('catalog.not_found')} />
       </SafeAreaView>
     );
   }
@@ -95,7 +116,7 @@ export default function ExerciseDetailScreen() {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabBar}>
+      <View style={styles.tabBar} accessibilityRole="tablist">
         <Pressable
           style={[styles.tab, activeTab === 'how_to' && styles.tabActive]}
           onPress={() => setActiveTab('how_to')}
@@ -145,6 +166,7 @@ export default function ExerciseDetailScreen() {
             <View style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: colors.muscleSecondary }]} />
               <Text style={styles.legendText}>
+                {`${t('exercise.secondary_label')}: `}
                 {secondaryMuscles.map((m) => t(`muscles.${m.muscle}`)).join(', ')}
               </Text>
             </View>
@@ -191,6 +213,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

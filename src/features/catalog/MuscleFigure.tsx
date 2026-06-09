@@ -80,25 +80,23 @@ export interface MuscleFigureProps {
 export function MuscleFigure({ muscles, scale = 1.4 }: MuscleFigureProps) {
   const { t } = useTranslation();
 
-  // Build ExtendedBodyPart entries from the muscle list
-  const bodyParts: ExtendedBodyPart[] = [];
+  // Build ExtendedBodyPart entries using a Map keyed by slug.
+  // The Map keeps the highest intensity per slug (primary=2 beats secondary=1),
+  // which is both correct and safe if this component is later memoized.
+  const slugMap = new Map<string, ExtendedBodyPart>();
 
   for (const { muscle, role } of muscles) {
     const slugs = MUSCLE_TO_SLUGS[muscle];
     const intensity = role === 'primary' ? 2 : 1;
     for (const slug of slugs) {
-      // Avoid duplicates (in case same slug appears twice)
-      if (!bodyParts.find((p) => p.slug === slug)) {
-        bodyParts.push({ slug, intensity });
-      } else {
-        // If already present at lower intensity, upgrade it
-        const existing = bodyParts.find((p) => p.slug === slug);
-        if (existing && existing.intensity !== undefined && existing.intensity < intensity) {
-          existing.intensity = intensity;
-        }
+      const existing = slugMap.get(slug);
+      if (!existing || (existing.intensity !== undefined && existing.intensity < intensity)) {
+        slugMap.set(slug, { slug, intensity });
       }
     }
   }
+
+  const bodyParts = Array.from(slugMap.values());
 
   // Split into front/back subsets
   const frontParts = bodyParts.filter((p) => p.slug && FRONT_SLUGS.includes(p.slug as Slug));

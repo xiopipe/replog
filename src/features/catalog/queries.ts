@@ -73,10 +73,17 @@ export function getFilteredExercises(
   ].filter((e) => !e.deleted_at);
 
   // Build a lookup: exercise_id → muscles
-  const allMuscles = [
-    ...Object.values(globalMuscles),
-    ...Object.values(userMuscles),
-  ];
+  // Deduplicate by row id before building the lookup: globalExerciseMuscles$ and
+  // db.userExerciseMuscles$ are both RLS-scoped, so after sync they can contain
+  // the same rows, producing duplicates that inflate volume counts and figure colors.
+  const seenMuscleIds = new Set<string>();
+  const allMuscles: ExerciseMuscleRow[] = [];
+  for (const m of [...Object.values(globalMuscles), ...Object.values(userMuscles)]) {
+    if (!seenMuscleIds.has(m.id)) {
+      seenMuscleIds.add(m.id);
+      allMuscles.push(m);
+    }
+  }
   const musclesByExercise: Record<string, ExerciseMuscleInfo[]> = {};
   for (const m of allMuscles) {
     if (!musclesByExercise[m.exercise_id]) {
@@ -121,10 +128,16 @@ export function getMusclesForExercise(
   userMuscles: Record<string, ExerciseMuscleRow>,
   exerciseId: string,
 ): ExerciseMuscleInfo[] {
-  const allMuscles = [
-    ...Object.values(globalMuscles),
-    ...Object.values(userMuscles),
-  ];
+  // Deduplicate by row id: both observables are RLS-scoped and can hold the same
+  // rows after sync, which would double-count muscles for the same exercise.
+  const seenIds = new Set<string>();
+  const allMuscles: ExerciseMuscleRow[] = [];
+  for (const m of [...Object.values(globalMuscles), ...Object.values(userMuscles)]) {
+    if (!seenIds.has(m.id)) {
+      seenIds.add(m.id);
+      allMuscles.push(m);
+    }
+  }
   return allMuscles
     .filter((m) => m.exercise_id === exerciseId)
     .map((m) => ({ muscle: m.muscle, role: m.role, contribution: m.contribution }));
@@ -158,7 +171,9 @@ export function createCustomExercise(
     deleted_at: null,
   };
 
-  // Write exercise row
+  // Write exercise row.
+  // Cast to any: Legend-State's Observable<Record<string,T>> does not carry a string
+  // index signature at the TS level, but the runtime proxy supports dynamic key access.
   (db.userExercises$ as any)[exerciseId].set(exerciseRow);
 
   // Write muscle rows
@@ -173,6 +188,7 @@ export function createCustomExercise(
       created_at: now,
       updated_at: now,
     };
+    // Same cast rationale as userExercises$ above — dynamic-key proxy, no TS index signature.
     (db.userExerciseMuscles$ as any)[muscleId].set(muscleRow);
   };
 

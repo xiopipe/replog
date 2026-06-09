@@ -58,7 +58,9 @@
     "empty_search": "Sin resultados para esta búsqueda.",
     "empty_catalog": "No hay ejercicios en el catálogo.",
     "add_exercise": "Nuevo ejercicio",
-    "error_load": "No se pudo cargar el catálogo."
+    "error_load": "No se pudo cargar el catálogo.",
+    "not_found": "Ejercicio no encontrado.",
+    "row_hint": "Abre el detalle del ejercicio"
   },
   "exercise": {
     "detail_title": "Ejercicio",
