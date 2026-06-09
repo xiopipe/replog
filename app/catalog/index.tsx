@@ -2,9 +2,10 @@
  * Catalog list screen.
  * Search + filter by muscle group, shows merged global + user exercises.
  *
- * Picker mode: when the route has a `pickFor=<routineId>` query param,
- * tapping a row adds the exercise to that routine and navigates back
- * instead of opening the exercise detail.
+ * Picker modes:
+ *   pickFor=<routineId>         — routine exercise picker (existing)
+ *   pickForSession=<sessionId>  — session "add exercise" picker
+ *   swapSession=<sessionId>&swapSE=<seId> — session "swap exercise" picker
  */
 import { use$ } from '@legendapp/state/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -32,14 +33,28 @@ import { getFilteredExercises } from '@/features/catalog/queries';
 import { ExerciseRow } from '@/features/catalog/ExerciseRow';
 import { MUSCLE_KEYS } from '@/features/catalog/constants';
 import { addExerciseToRoutine } from '@/features/routines/mutations';
+import {
+  addExerciseToSession,
+  swapExercise,
+} from '@/features/session/mutations';
 
 export default function CatalogScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { db, session } = useAuth();
-  const { pickFor } = useLocalSearchParams<{ pickFor?: string }>();
+  const {
+    pickFor,
+    pickForSession,
+    swapSession,
+    swapSE,
+  } = useLocalSearchParams<{
+    pickFor?: string;
+    pickForSession?: string;
+    swapSession?: string;
+    swapSE?: string;
+  }>();
 
-  const isPickerMode = !!pickFor;
+  const isPickerMode = !!pickFor || !!pickForSession || !!swapSession;
 
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<MuscleEnum | null>(null);
@@ -86,22 +101,39 @@ export default function CatalogScreen() {
 
   /** In picker mode: add exercise to routine and go back. */
   const handlePickerSelect = (exerciseId: string) => {
-    if (!db || !session || !pickFor) return;
+    if (!db || !session) return;
 
-    // Compute the next order_index for this routine
-    const existing = Object.values(rawRoutineExercises ?? {}).filter(
-      (re) => re.routine_id === pickFor && !re.deleted_at,
-    );
-    const nextIndex = existing.length;
+    if (pickFor) {
+      // Routine exercise picker (existing behaviour)
+      const existing = Object.values(rawRoutineExercises ?? {}).filter(
+        (re) => re.routine_id === pickFor && !re.deleted_at,
+      );
+      const nextIndex = existing.length;
 
-    addExerciseToRoutine(db, {
-      routineId: pickFor,
-      exerciseId,
-      orderIndex: nextIndex,
-      userId: session.user.id,
-    });
+      addExerciseToRoutine(db, {
+        routineId: pickFor,
+        exerciseId,
+        orderIndex: nextIndex,
+        userId: session.user.id,
+      });
 
-    router.back();
+      router.back();
+      return;
+    }
+
+    if (pickForSession) {
+      // Session "add exercise" picker
+      addExerciseToSession(db, pickForSession, exerciseId, session.user.id);
+      router.back();
+      return;
+    }
+
+    if (swapSession && swapSE) {
+      // Session "swap exercise" picker
+      swapExercise(db, swapSE, exerciseId);
+      router.back();
+      return;
+    }
   };
 
   return (

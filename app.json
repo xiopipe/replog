@@ -31,7 +31,8 @@
       "expo-sqlite",
       "expo-localization",
       "expo-font",
-      "./plugins/withGradleVersion"
+      "./plugins/withGradleVersion",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

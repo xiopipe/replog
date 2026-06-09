@@ -1,9 +1,15 @@
 /**
  * Home tab — today's plan, weekly strip, and quick start button.
  *
+ * Phase 3 wiring:
+ *  - If there's an in-progress session → show "Reanudar" → navigate to it.
+ *  - Today's routine card → "Empezar entreno" → startSessionFromRoutine → navigate.
+ *  - "Repetir último" → repeatLastSession → navigate (or show nothing if no history).
+ *  - "Registrar entreno pasado" → navigate to retroactive screen.
+ *
  * States:
  *  - No active plan → CTA to choose a template
- *  - Active plan with today's routine → routine card + "Empezar entreno" (placeholder)
+ *  - Active plan with today's routine → routine card + start/resume
  *  - Active plan, today = rest → rest message
  */
 import { use$ } from '@legendapp/state/react';
@@ -12,6 +18,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,10 +27,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
-import { colors, spacing, typography } from '@/lib/theme';
+import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { getActivePlan, getWeekdaySummaries } from '@/features/routines/queries';
+import { getActiveSession } from '@/features/session/queries';
+import {
+  startSessionFromRoutine,
+  repeatLastSession,
+} from '@/features/session/mutations';
+import type { RoutineRow, RoutineExerciseRow } from '@/db';
 
 // Today's weekday: JS getDay() is 0=Sun, but our schema is 0=Mon.
 // Convert: Mon=0, Tue=1, …, Sun=6
@@ -41,6 +54,7 @@ export default function HomeScreen() {
   const rawPlanDays = use$(db?.planDays$);
   const rawRoutines = use$(db?.routines$);
   const rawRoutineExercises = use$(db?.routineExercises$);
+  const rawSessions = use$(db?.workoutSessions$);
 
   const isLoading = !db;
 
@@ -64,6 +78,52 @@ export default function HomeScreen() {
     ?? session?.user?.email?.split('@')[0]
     ?? '';
 
+  // Detect active session
+  const activeSession = useMemo(
+    () => getActiveSession(rawSessions ?? {}),
+    [rawSessions],
+  );
+
+  // Check if there's any completed session for "repeat last"
+  const hasCompletedSession = useMemo(() => {
+    if (!rawSessions) return false;
+    return Object.values(rawSessions).some(
+      (s) => s.status === 'completed' && !s.deleted_at,
+    );
+  }, [rawSessions]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleResumeSession = () => {
+    if (!activeSession) return;
+    router.push(`/session/${activeSession.id}`);
+  };
+
+  const handleStartFromRoutine = () => {
+    if (!db || !session?.user?.id) return;
+
+    const todayRoutine = todaySummary?.routine;
+    if (!todayRoutine) return;
+
+    // Get routine exercises
+    const routineExercises: RoutineExerciseRow[] = Object.values(rawRoutineExercises ?? {}).filter(
+      (re) => re.routine_id === todayRoutine.id && !re.deleted_at,
+    );
+
+    const sessionId = startSessionFromRoutine(db, todayRoutine as RoutineRow, routineExercises);
+    router.push(`/session/${sessionId}`);
+  };
+
+  const handleRepeatLast = () => {
+    if (!db || !session?.user?.id) return;
+    const sessionId = repeatLastSession(db, session.user.id);
+    if (sessionId) {
+      router.push(`/session/${sessionId}`);
+    }
+  };
+
+  // ── Loading ───────────────────────────────────────────────────────────────
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -74,7 +134,8 @@ export default function HomeScreen() {
     );
   }
 
-  // No active plan
+  // ── No active plan ────────────────────────────────────────────────────────
+
   if (!activePlan) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -93,12 +154,34 @@ export default function HomeScreen() {
             onPress={() => router.push('/plan/templates')}
             style={styles.ctaBtn}
           />
+
+          {/* Resume active session (even without a plan) */}
+          {activeSession ? (
+            <Pressable
+              onPress={handleResumeSession}
+              style={styles.resumeBanner}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.resume_workout')}
+            >
+              <Text style={styles.resumeBannerText}>{t('home.resume_workout')}</Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            onPress={() => router.push('/session/retroactive')}
+            style={styles.retroButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.retroactive')}
+          >
+            <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
+          </Pressable>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
-  // Has active plan
+  // ── Has active plan ───────────────────────────────────────────────────────
+
   const todayHasRoutine = todaySummary?.routine !== null;
   const todayRoutine = todaySummary?.routine;
   const todayExerciseCount = todaySummary?.exerciseCount ?? 0;
@@ -119,6 +202,18 @@ export default function HomeScreen() {
         {/* Weekly strip */}
         <WeeklyStrip weekdays={weekdays} todayIndex={todayIndex} t={t} />
 
+        {/* Resume active session banner (top priority) */}
+        {activeSession ? (
+          <Pressable
+            onPress={handleResumeSession}
+            style={styles.resumeBanner}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.resume_workout')}
+          >
+            <Text style={styles.resumeBannerText}>{t('home.resume_workout')}</Text>
+          </Pressable>
+        ) : null}
+
         {/* Today's routine card */}
         {todayHasRoutine && todayRoutine ? (
           <Card style={styles.routineCard}>
@@ -127,13 +222,9 @@ export default function HomeScreen() {
             <Text style={styles.routineCardMeta}>
               {t('home.exercises_count', { count: todayExerciseCount })}
             </Text>
-            {/* Phase 3 placeholder — button is visible but disabled */}
             <Button
-              label={t('home.start_workout')}
-              onPress={() => {
-                // Phase 3: will navigate to active session
-              }}
-              disabled
+              label={activeSession ? t('home.resume_workout') : t('home.start_workout')}
+              onPress={activeSession ? handleResumeSession : handleStartFromRoutine}
               style={styles.startBtn}
             />
           </Card>
@@ -142,6 +233,28 @@ export default function HomeScreen() {
             <Text style={styles.restCardText}>{t('home.today_rest')}</Text>
           </Card>
         )}
+
+        {/* Repeat last workout */}
+        {hasCompletedSession && !activeSession ? (
+          <Pressable
+            onPress={handleRepeatLast}
+            style={styles.repeatButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.repeat_last')}
+          >
+            <Text style={styles.repeatButtonText}>{t('home.repeat_last')}</Text>
+          </Pressable>
+        ) : null}
+
+        {/* Retroactive logging */}
+        <Pressable
+          onPress={() => router.push('/session/retroactive')}
+          style={styles.retroButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.retroactive')}
+        >
+          <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -232,6 +345,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 
+  // Resume banner
+  resumeBanner: {
+    minHeight: TOUCH_TARGET,
+    borderRadius: 10,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  resumeBannerText: {
+    ...typography.section,
+    color: colors.onAccent,
+    fontSize: 14,
+  },
+
   // Weekly strip
   strip: {
     flexDirection: 'row',
@@ -308,5 +436,34 @@ const styles = StyleSheet.create({
   restCardText: {
     ...typography.section,
     color: colors.textTertiary,
+  },
+
+  // Repeat last button
+  repeatButton: {
+    minHeight: TOUCH_TARGET,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  repeatButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+
+  // Retroactive
+  retroButton: {
+    minHeight: TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retroButtonText: {
+    ...typography.label,
+    color: colors.textTertiary,
+    fontSize: 12,
   },
 });

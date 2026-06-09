@@ -48,6 +48,10 @@ function RootNavigator() {
       <Stack.Screen name="routines/editor" />
       <Stack.Screen name="plan/index" />
       <Stack.Screen name="plan/templates" />
+      {/* Session routes — tab bar intentionally hidden (not inside (tabs)) */}
+      <Stack.Screen name="session/[id]" />
+      <Stack.Screen name="session/summary/[id]" />
+      <Stack.Screen name="session/retroactive" />
     </Stack>
   );
 }
