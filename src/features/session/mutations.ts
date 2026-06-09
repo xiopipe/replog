@@ -694,6 +694,37 @@ export function finishSession(db: UserObservables, sessionId: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Session patch
+// ---------------------------------------------------------------------------
+
+export interface UpdateSessionInput {
+  started_at?: string;
+  name?: string;
+  notes?: string;
+}
+
+/**
+ * Update mutable fields of a workout session.
+ *
+ * Bumps updated_at on every write. All fields are optional; supply only
+ * the fields you want to change.
+ */
+export function updateSession(
+  db: UserObservables,
+  sessionId: string,
+  patch: UpdateSessionInput,
+): void {
+  const now = new Date().toISOString();
+  (db.workoutSessions$ as any)[sessionId].set((prev: WorkoutSessionRow) => ({
+    ...prev,
+    ...(patch.started_at !== undefined ? { started_at: patch.started_at } : {}),
+    ...(patch.name !== undefined ? { name: patch.name } : {}),
+    ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    updated_at: now,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Active session guard
 // ---------------------------------------------------------------------------
 

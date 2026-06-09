@@ -105,7 +105,7 @@ const segStyles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   segment: {
-    minHeight: TOUCH_TARGET - 8,
+    minHeight: TOUCH_TARGET,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     alignItems: 'center',

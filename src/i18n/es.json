@@ -43,18 +43,15 @@
     "week_of": "Semana del",
     "sets_abbr": "series",
     "unnamed_session": "Entreno sin nombre",
-    "pr_badge": "🏆 PR",
+    "pr_badge": "PR",
     "pr_count_one": "{{count}} récord nuevo",
     "pr_count_other": "{{count}} récords nuevos",
-    "pr_count": "{{count}} récord(s) nuevo(s)",
     "session_not_found": "Sesión no encontrada.",
     "exercises_title": "Ejercicios",
     "unknown_exercise": "Ejercicio desconocido",
     "no_sets": "Sin series registradas.",
     "date_label": "Fecha de inicio",
-    "edit_date": "Editar fecha",
-    "invalid_date": "Fecha inválida",
-    "date_format_hint": "Usa el formato DD/MM/YYYY HH:mm"
+    "edit_date": "Editar fecha"
   },
   "settings": {
     "title": "Ajustes",

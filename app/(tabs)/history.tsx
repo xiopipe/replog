@@ -11,6 +11,7 @@ import { use$ } from '@legendapp/state/react';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Pressable,
@@ -93,11 +94,17 @@ function buildMusclesBySeId(
 // Session row
 // ---------------------------------------------------------------------------
 
+interface MuscleVolume {
+  muscle: MuscleEnum;
+  /** Fractional sets, rounded to nearest 0.5 for display */
+  sets: number;
+}
+
 interface SessionRowData {
   session: WorkoutSessionRow;
   durationMs: number | null;
   effectiveSets: number;
-  topMuscles: MuscleEnum[];
+  topMuscles: MuscleVolume[];
   hasPR: boolean;
 }
 
@@ -111,8 +118,8 @@ function SessionCard({ data, onPress }: { data: SessionRowData; onPress: () => v
   const dateLabel = sessionDateLabel(session.started_at, t);
   const muscleLabels = topMuscles
     .slice(0, 3)
-    .map((m) => t(`muscles.${m}`))
-    .join(', ');
+    .map(({ muscle, sets }) => `${t(`muscles.${muscle}`)} ${sets}`)
+    .join(' · ');
 
   const sessionName = session.name ?? t('history.unnamed_session');
 
@@ -129,6 +136,7 @@ function SessionCard({ data, onPress }: { data: SessionRowData; onPress: () => v
         </Text>
         {hasPR && (
           <View style={styles.prBadge} accessibilityLabel={t('history.pr_badge')}>
+            <Ionicons name="trophy" size={11} color={colors.warning} style={styles.prTrophyIcon} />
             <Text style={styles.prBadgeText}>{t('history.pr_badge')}</Text>
           </View>
         )}
@@ -175,9 +183,15 @@ function useSections(
       const musclesBySeId = buildMusclesBySeId(s.id, sessionExercises, globalMuscles, userMuscles);
       const summary = summarizeSession(s, sessionExercises, sets, sessions, musclesBySeId);
 
-      const topMuscles = (Object.entries(summary.volumeByMuscle) as [MuscleEnum, number][])
+      const topMuscles: MuscleVolume[] = (
+        Object.entries(summary.volumeByMuscle) as [MuscleEnum, number][]
+      )
         .sort((a, b) => b[1] - a[1])
-        .map(([m]) => m);
+        .map(([muscle, vol]) => ({
+          muscle,
+          // Round fractional volume to nearest 0.5
+          sets: Math.round(vol * 2) / 2,
+        }));
 
       rowDataMap[s.id] = {
         session: s,
@@ -344,11 +358,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   prBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.warningBg,
     borderRadius: radius.md,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
     marginLeft: spacing.sm,
+    gap: 3,
+  },
+  prTrophyIcon: {
+    // marginRight handled by gap
   },
   prBadgeText: {
     ...typography.label,

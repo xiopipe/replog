@@ -8,6 +8,7 @@
  * Route: /history/[id]  (Stack route; registered in app/_layout.tsx)
  */
 
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { use$ } from '@legendapp/state/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -15,11 +16,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,7 +46,7 @@ import {
   getUserUnitPreference,
   getUserDefaultFailureMetric,
 } from '@/features/session/queries';
-import { addSet, updateSet, deleteSet } from '@/features/session/mutations';
+import { addSet, updateSet, deleteSet, updateSession } from '@/features/session/mutations';
 import { SetRow } from '@/features/session/SetRow';
 import type { MusclesBySessionExerciseId } from '@/lib/hypertrophy';
 import { formatMmSs } from '@/features/session/SessionTimer';
@@ -102,9 +103,9 @@ export default function SessionDetailScreen() {
   const globalMuscles = use$(globalExerciseMuscles$);
   const rawUserMuscles = use$(db?.userExerciseMuscles$);
 
-  // Local state for editing started_at
-  const [editingDate, setEditingDate] = useState(false);
-  const [dateInput, setDateInput] = useState('');
+  // Local state for editing started_at via native date picker
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickedDate, setPickedDate] = useState<Date | null>(null);
 
   const workout = rawSessions != null ? (rawSessions[sessionId] ?? null) : null;
 
@@ -195,33 +196,33 @@ export default function SessionDetailScreen() {
 
   const sessionName = workout.name ?? t('history.unnamed_session');
 
-  // --- edit started_at ---
-  const handleEditDate = () => {
-    setDateInput(formatDateTime(workout.started_at));
-    setEditingDate(true);
+  // --- edit started_at via native date picker ---
+  const handleOpenDatePicker = () => {
+    setPickedDate(new Date(workout.started_at));
+    setShowDatePicker(true);
   };
 
-  const handleSaveDate = () => {
-    const match = dateInput.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/);
-    if (!match) {
-      Alert.alert(t('history.invalid_date'), t('history.date_format_hint'));
-      return;
+  const handleDateChange = (_event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS !== 'ios') setShowDatePicker(false);
+    if (selected) {
+      setPickedDate(selected);
+      if (Platform.OS !== 'ios') {
+        // On Android the picker closes on selection — write immediately
+        updateSession(db, sessionId, { started_at: selected.toISOString() });
+      }
     }
-    const [, dd, mm, yyyy, hh, min] = match;
-    const iso = new Date(
-      Number(yyyy),
-      Number(mm) - 1,
-      Number(dd),
-      Number(hh),
-      Number(min),
-    ).toISOString();
-    const now = new Date().toISOString();
-    (db.workoutSessions$ as any)[sessionId].set((prev: typeof workout) => ({
-      ...prev,
-      started_at: iso,
-      updated_at: now,
-    }));
-    setEditingDate(false);
+  };
+
+  const handleConfirmIOSDate = () => {
+    if (pickedDate) {
+      updateSession(db, sessionId, { started_at: pickedDate.toISOString() });
+    }
+    setShowDatePicker(false);
+  };
+
+  const handleCancelDatePicker = () => {
+    setShowDatePicker(false);
+    setPickedDate(null);
   };
 
   return (
@@ -251,21 +252,18 @@ export default function SessionDetailScreen() {
         <Card style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('history.date_label')}</Text>
-            {editingDate ? (
+            {showDatePicker && Platform.OS === 'ios' ? (
               <View style={styles.dateEditRow}>
-                <TextInput
-                  style={styles.dateInput}
-                  value={dateInput}
-                  onChangeText={setDateInput}
-                  keyboardType="numbers-and-punctuation"
-                  returnKeyType="done"
-                  onSubmitEditing={handleSaveDate}
-                  accessibilityLabel={t('history.date_label')}
-                  placeholder="DD/MM/YYYY HH:mm"
-                  placeholderTextColor={colors.textTertiary}
+                <DateTimePicker
+                  value={pickedDate ?? new Date(workout.started_at)}
+                  mode="datetime"
+                  display="compact"
+                  maximumDate={new Date()}
+                  onChange={handleDateChange}
+                  themeVariant="dark"
                 />
                 <Pressable
-                  onPress={handleSaveDate}
+                  onPress={handleConfirmIOSDate}
                   style={styles.dateSaveBtn}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.save')}
@@ -273,7 +271,7 @@ export default function SessionDetailScreen() {
                   <Ionicons name="checkmark" size={18} color={colors.success} />
                 </Pressable>
                 <Pressable
-                  onPress={() => setEditingDate(false)}
+                  onPress={handleCancelDatePicker}
                   style={styles.dateSaveBtn}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.cancel')}
@@ -283,7 +281,7 @@ export default function SessionDetailScreen() {
               </View>
             ) : (
               <Pressable
-                onPress={handleEditDate}
+                onPress={handleOpenDatePicker}
                 style={styles.dateRow}
                 accessibilityRole="button"
                 accessibilityLabel={t('history.edit_date')}
@@ -298,6 +296,17 @@ export default function SessionDetailScreen() {
               </Pressable>
             )}
           </View>
+
+          {/* Android date picker renders as a modal dialog */}
+          {showDatePicker && Platform.OS === 'android' && (
+            <DateTimePicker
+              value={pickedDate ?? new Date(workout.started_at)}
+              mode="datetime"
+              display="default"
+              maximumDate={new Date()}
+              onChange={handleDateChange}
+            />
+          )}
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('summary.duration_label')}</Text>
@@ -490,18 +499,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
-  dateInput: {
-    ...typography.body,
-    color: colors.textPrimary,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    minWidth: 140,
-  },
   dateSaveBtn: {
-    minWidth: TOUCH_TARGET - 8,
-    minHeight: TOUCH_TARGET - 8,
+    minWidth: TOUCH_TARGET,
+    minHeight: TOUCH_TARGET,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   addSetBtn: {
-    minHeight: TOUCH_TARGET - 8,
+    minHeight: TOUCH_TARGET,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.xs,
