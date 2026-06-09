@@ -260,7 +260,7 @@ function WeekdayRow({
 
       {hasRoutine && (
         <Text style={styles.exCount}>
-          {t('weekly_plan.exercises_abbr_one', { count: summary.exerciseCount })}
+          {t('weekly_plan.exercises_abbr', { count: summary.exerciseCount })}
         </Text>
       )}
 
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   // Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   modalSheet: {

@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   chip: {
-    minHeight: TOUCH_TARGET - 8, // slightly smaller within list, still ≥36
+    minHeight: TOUCH_TARGET,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.lg,

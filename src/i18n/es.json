@@ -212,6 +212,7 @@
     "clear_day": "Limpiar día",
     "no_plan": "Sin plan activo",
     "no_plan_cta": "Elige una plantilla para empezar o crea tu plan.",
+    "exercises_abbr": "{{count}} ej.",
     "exercises_abbr_one": "{{count}} ej.",
     "exercises_abbr_other": "{{count}} ej.",
     "activate_plan": "Activar este plan"

@@ -274,9 +274,9 @@ export default function ExerciseDetailScreen() {
                     : `—`;
                 const rirLabel =
                   s.failure_metric === 'rir' && s.rir != null
-                    ? ` @ ${s.rir} RIR`
+                    ? ` @ ${s.rir} ${t('session.rir_label')}`
                     : s.failure_metric === 'rpe' && s.rpe != null
-                    ? ` @ RPE ${s.rpe}`
+                    ? ` @ ${t('session.rpe_label')} ${s.rpe}`
                     : '';
                 const date = new Date(s.performed_at);
                 const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;

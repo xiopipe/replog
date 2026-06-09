@@ -11,6 +11,13 @@ export const palette = {
   // Muscle figure
   musclePrimary: '#D85A30',
   muscleSecondary: '#F0997B',
+  // PR chip
+  prIconBg: '#F6D99A',
+  prText: '#9A7322',
+  prBorder: '#EDD99A',
+  // Overlays
+  overlay: 'rgba(0,0,0,0.5)',
+  shadow: '#000000',
 } as const;
 
 export const dark = {

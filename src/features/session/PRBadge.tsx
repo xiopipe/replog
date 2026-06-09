@@ -49,6 +49,7 @@ export function PRBadge({ exerciseName, weight, reps, onDismiss }: PRBadgeProps)
     <Animated.View
       style={[styles.container, { opacity }]}
       accessible
+      accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
       accessibilityLabel={`${t('session.pr_badge_title')} ${exerciseName} ${weight} × ${reps}`}
     >
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     zIndex: 100,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F6D99A',
+    backgroundColor: colors.prIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -105,6 +106,6 @@ const styles = StyleSheet.create({
   },
   desc: {
     ...typography.label,
-    color: '#9A7322',
+    color: colors.prText,
   },
 });

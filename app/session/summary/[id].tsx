@@ -355,20 +355,20 @@ const styles = StyleSheet.create({
   },
   prRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: '#EDD99A',
+    borderTopColor: colors.prBorder,
   },
   prIconWrapper: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#F6D99A',
+    backgroundColor: colors.prIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   prIcon: { fontSize: 15 },
   prTextWrapper: { flex: 1 },
   prExercise: { ...typography.label, color: colors.warning, fontWeight: '600' },
-  prDesc: { ...typography.label, color: '#9A7322' },
+  prDesc: { ...typography.label, color: colors.prText },
 
   // Done button
   doneButton: {

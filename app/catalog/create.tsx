@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   singleChip: {
-    minHeight: TOUCH_TARGET - 8,
+    minHeight: TOUCH_TARGET,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.lg,
