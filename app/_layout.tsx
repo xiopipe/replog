@@ -52,6 +52,8 @@ function RootNavigator() {
       <Stack.Screen name="session/[id]" />
       <Stack.Screen name="session/summary/[id]" />
       <Stack.Screen name="session/retroactive" />
+      {/* History detail route */}
+      <Stack.Screen name="history/[id]" />
     </Stack>
   );
 }

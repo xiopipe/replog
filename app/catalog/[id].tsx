@@ -1,7 +1,7 @@
 /**
  * Exercise detail screen.
  * Shows the muscle figure, instructions ("How to" tab), and best 1RM card.
- * Phase 1: no logged sets yet → 1RM card shows empty state.
+ * History tab: past sets for this exercise + best estimated 1RM.
  */
 import { use$ } from '@legendapp/state/react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { globalExercises$, globalExerciseMuscles$ } from '@/db';
+import type { SetRow as SetRowData } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 import { getMusclesForExercise } from '@/features/catalog/queries';
@@ -26,6 +27,8 @@ import { MuscleFigure } from '@/features/catalog/MuscleFigure';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
+import { getExerciseHistorySets, getUserUnitPreference } from '@/features/session/queries';
+import { estimated1RM } from '@/lib/hypertrophy';
 
 type TabKey = 'how_to' | 'history';
 
@@ -36,12 +39,16 @@ export default function ExerciseDetailScreen() {
 
   const [activeTab, setActiveTab] = useState<TabKey>('how_to');
 
-  const { db } = useAuth();
+  const { db, session: authSession } = useAuth();
+  const userId = authSession?.user?.id ?? '';
 
   const globalExercises = use$(globalExercises$);
   const globalMuscles = use$(globalExerciseMuscles$);
   const rawUserExercises = use$(db?.userExercises$);
   const rawUserMuscles = use$(db?.userExerciseMuscles$);
+  const rawSets = use$(db?.sets$);
+  const rawSessionExercises = use$(db?.sessionExercises$);
+  const rawProfiles = use$(db?.profiles$);
 
   const exercise = useMemo(
     () =>
@@ -57,6 +64,42 @@ export default function ExerciseDetailScreen() {
         ? getMusclesForExercise(globalMuscles ?? {}, rawUserMuscles ?? {}, id)
         : [],
     [exercise, globalMuscles, rawUserMuscles, id],
+  );
+
+  const userUnit = useMemo(
+    () => getUserUnitPreference(rawProfiles ?? {}, userId),
+    [rawProfiles, userId],
+  );
+
+  // History sets for this exercise (all working sets across all sessions)
+  const historySets = useMemo<SetRowData[]>(
+    () =>
+      rawSets != null && rawSessionExercises != null
+        ? getExerciseHistorySets(rawSets, rawSessionExercises, id)
+        : [],
+    [rawSets, rawSessionExercises, id],
+  );
+
+  // Best estimated 1RM across history working sets
+  const bestE1RM = useMemo<number | null>(() => {
+    if (historySets.length === 0) return null;
+    let best = 0;
+    for (const s of historySets) {
+      if (s.weight_kg == null || s.reps == null || s.reps < 1) continue;
+      const e1 = estimated1RM(s.weight_kg, s.reps);
+      if (e1 > best) best = e1;
+    }
+    return best > 0 ? best : null;
+  }, [historySets]);
+
+  // Group history sets by session_exercise_id to show per-session grouping
+  // Sort sets descending by performed_at (most recent first)
+  const sortedHistory = useMemo<SetRowData[]>(
+    () =>
+      [...historySets].sort((a, b) =>
+        b.performed_at.localeCompare(a.performed_at),
+      ),
+    [historySets],
   );
 
   // Show a loading indicator while the global observables haven't synced yet.
@@ -188,7 +231,13 @@ export default function ExerciseDetailScreen() {
             {/* Best 1RM card */}
             <Card style={styles.card1rm}>
               <Text style={styles.card1rmLabel}>{t('exercise.best_mark')}</Text>
-              <Text style={styles.card1rmEmpty}>{t('exercise.no_records')}</Text>
+              {bestE1RM != null ? (
+                <Text style={styles.card1rmValue}>
+                  {`${Math.round(bestE1RM * 10) / 10} ${userUnit}`}
+                </Text>
+              ) : (
+                <Text style={styles.card1rmEmpty}>{t('exercise.no_records')}</Text>
+              )}
             </Card>
 
             {/* View history button */}
@@ -202,7 +251,46 @@ export default function ExerciseDetailScreen() {
         )}
 
         {activeTab === 'history' && (
-          <EmptyState message={t('exercise.no_records')} />
+          sortedHistory.length === 0 ? (
+            <EmptyState message={t('exercise.no_records')} />
+          ) : (
+            <View style={styles.historySection}>
+              {/* Best mark summary */}
+              {bestE1RM != null && (
+                <Card style={styles.card1rm}>
+                  <Text style={styles.card1rmLabel}>{t('exercise.best_mark')}</Text>
+                  <Text style={styles.card1rmValue}>
+                    {`${Math.round(bestE1RM * 10) / 10} ${userUnit}`}
+                  </Text>
+                </Card>
+              )}
+
+              {/* Set history list */}
+              <Text style={styles.historyListTitle}>{t('exercise.history_sets_title')}</Text>
+              {sortedHistory.map((s) => {
+                const weightDisplay =
+                  s.weight_value != null
+                    ? `${s.weight_value} ${s.weight_unit ?? userUnit}`
+                    : `—`;
+                const rirLabel =
+                  s.failure_metric === 'rir' && s.rir != null
+                    ? ` @ ${s.rir} RIR`
+                    : s.failure_metric === 'rpe' && s.rpe != null
+                    ? ` @ RPE ${s.rpe}`
+                    : '';
+                const date = new Date(s.performed_at);
+                const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                return (
+                  <View key={s.id} style={styles.historySetRow}>
+                    <Text style={styles.historySetMain}>
+                      {`${weightDisplay} × ${s.reps ?? '—'}${rirLabel}`}
+                    </Text>
+                    <Text style={styles.historySetDate}>{dateStr}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )
         )}
       </ScrollView>
     </SafeAreaView>
@@ -332,5 +420,39 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     borderColor: colors.border,
     borderRadius: radius.lg,
+  },
+  card1rmValue: {
+    ...typography.section,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  historySection: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
+  },
+  historyListTitle: {
+    ...typography.label,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.sm,
+  },
+  historySetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  historySetMain: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  historySetDate: {
+    ...typography.label,
+    color: colors.textTertiary,
+    fontSize: 12,
   },
 });
