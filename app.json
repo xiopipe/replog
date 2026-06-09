@@ -30,7 +30,8 @@
       "expo-web-browser",
       "expo-sqlite",
       "expo-localization",
-      "expo-font"
+      "expo-font",
+      "./plugins/withGradleVersion"
     ],
     "experiments": {
       "typedRoutes": true
