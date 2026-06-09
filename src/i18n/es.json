@@ -50,5 +50,63 @@
     "unit": "Unidad de peso",
     "failure_metric": "Métrica de esfuerzo por defecto",
     "account": "Cuenta"
+  },
+  "catalog": {
+    "title": "Ejercicios",
+    "search_placeholder": "Buscar ejercicio…",
+    "all_muscles": "Todos",
+    "empty_search": "Sin resultados para esta búsqueda.",
+    "empty_catalog": "No hay ejercicios en el catálogo.",
+    "add_exercise": "Nuevo ejercicio",
+    "error_load": "No se pudo cargar el catálogo."
+  },
+  "exercise": {
+    "detail_title": "Ejercicio",
+    "tab_how_to": "Cómo hacerlo",
+    "tab_history": "Historial",
+    "how_to_label": "Cómo hacerlo",
+    "no_instructions": "Sin instrucciones disponibles.",
+    "best_mark": "Mejor marca (1RM est.)",
+    "no_records": "Sin registros aún",
+    "view_history": "Ver historial completo",
+    "primary_label": "Principal",
+    "secondary_label": "Secundario",
+    "figure_front": "Vista frontal del cuerpo",
+    "figure_back": "Vista posterior del cuerpo",
+    "bodyweight_badge": "Peso corporal"
+  },
+  "create_exercise": {
+    "title": "Nuevo ejercicio",
+    "name_label": "Nombre",
+    "name_placeholder": "Nombre del ejercicio",
+    "category_label": "Categoría (equipo)",
+    "primary_muscles_label": "Músculo principal",
+    "secondary_muscles_label": "Músculos secundarios",
+    "bodyweight_label": "Ejercicio de peso corporal",
+    "bodyweight_hint": "El campo de peso registra la carga añadida (0 permitido)",
+    "instructions_label": "Instrucciones (opcional)",
+    "instructions_placeholder": "Breve descripción de cómo realizarlo",
+    "save_button": "Guardar ejercicio",
+    "error_name_required": "El nombre es obligatorio",
+    "error_primary_required": "Selecciona al menos un músculo principal",
+    "error_save": "No se pudo guardar el ejercicio"
+  },
+  "muscles": {
+    "chest": "Pecho",
+    "back": "Espalda",
+    "shoulders": "Hombros",
+    "arms": "Brazos",
+    "quads": "Cuádriceps",
+    "hamstrings_glutes": "Isquios / Glúteos",
+    "calves": "Gemelos",
+    "core": "Core"
+  },
+  "equipment": {
+    "barbell": "Barra",
+    "dumbbell": "Mancuernas",
+    "machine": "Máquina",
+    "cable": "Cable",
+    "bodyweight": "Peso corporal",
+    "other": "Otro"
   }
 }
