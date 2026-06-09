@@ -125,7 +125,7 @@ export default function HomeScreen() {
             <Text style={styles.routineCardLabel}>{t('home.todays_routine')}</Text>
             <Text style={styles.routineCardName}>{todayRoutine.name}</Text>
             <Text style={styles.routineCardMeta}>
-              {t('home.exercises_count_one', { count: todayExerciseCount })}
+              {t('home.exercises_count', { count: todayExerciseCount })}
             </Text>
             {/* Phase 3 placeholder — button is visible but disabled */}
             <Button

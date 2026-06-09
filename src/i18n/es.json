@@ -32,14 +32,6 @@
     "history": "Historial",
     "settings": "Ajustes"
   },
-  "home": {
-    "title": "Inicio",
-    "empty": "Aún no tienes un plan. Crea tu primera rutina."
-  },
-  "routines": {
-    "title": "Rutinas",
-    "empty": "No tienes rutinas todavía."
-  },
   "history": {
     "title": "Historial",
     "empty": "Aquí verás tus entrenamientos.",
@@ -135,6 +127,7 @@
     "new_routine": "Nueva rutina",
     "weekly_plan": "Plan semanal",
     "templates": "Plantillas de inicio",
+    "exercises_count": "{{count}} ejercicio",
     "exercises_count_one": "{{count}} ejercicio",
     "exercises_count_other": "{{count}} ejercicios",
     "delete_confirm": "¿Eliminar esta rutina?",
@@ -154,8 +147,12 @@
     "error_min_exercise": "Añade al menos un ejercicio.",
     "error_save": "No se pudo guardar la rutina.",
     "drag_hint": "Mantén para arrastrar",
+    "exercises_empty": "Aún no has añadido ejercicios. Pulsa «+ Añadir ejercicio».",
     "target_sets_label": "Series",
     "target_reps_label": "Reps",
+    "target_reps_min_label": "Reps (mín)",
+    "target_reps_max_label": "Reps (máx)",
+    "target_empty_placeholder": "—",
     "target_weight_label": "Peso objetivo (kg)",
     "target_rir_label": "RIR objetivo",
     "targets_placeholder": "Sin objetivo",
@@ -163,6 +160,7 @@
     "target_summary_sets_fixed": "{{sets}} series · {{reps}} reps",
     "target_summary_sets_failure": "{{sets}} series · al fallo",
     "target_summary_reps": "{{reps}} reps",
+    "target_summary_reps_range": "{{min}}–{{max}} reps",
     "target_summary_failure": "Al fallo",
     "target_summary_none": "Sin objetivo",
     "edit_targets": "Editar objetivos",
@@ -197,7 +195,8 @@
     "ppl_desc": "El split clásico de empuje, tirón y piernas: 6 días.",
     "select": "Seleccionar",
     "creating": "Creando plan…",
-    "error_create": "No se pudo crear el plan."
+    "error_create": "No se pudo crear el plan.",
+    "error_catalog_not_ready": "El catálogo aún se está cargando. Inténtalo en un momento."
   },
   "home": {
     "title": "Inicio",
@@ -210,6 +209,7 @@
     "todays_routine": "Rutina de hoy",
     "start_workout": "Empezar entreno",
     "repeat_last": "Repetir último entreno",
+    "exercises_count": "{{count}} ejercicio",
     "exercises_count_one": "{{count}} ejercicio",
     "exercises_count_other": "{{count}} ejercicios",
     "empty": "Aún no tienes un plan. Crea tu primera rutina."

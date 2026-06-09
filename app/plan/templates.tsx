@@ -35,6 +35,16 @@ export default function TemplatesScreen() {
 
   const handleSelect = (config: TemplateConfig) => {
     if (!db || !session) return;
+
+    // Guard: non-blank templates need the catalog to be ready
+    if (
+      config.template !== null &&
+      (!globalExercises || Object.keys(globalExercises).length === 0)
+    ) {
+      setError(t('templates.error_catalog_not_ready'));
+      return;
+    }
+
     setError(null);
     setCreating(true);
 

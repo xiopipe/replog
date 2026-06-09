@@ -136,7 +136,8 @@ export function buildTargetSummary(
     setsReps: (sets: number, min: number, max: number) => string;
     setsFixed: (sets: number, reps: number) => string;
     setsFailure: (sets: number) => string;
-    reps: (reps: number, max: number) => string;
+    reps: (reps: number) => string;
+    repsRange: (min: number, max: number) => string;
     failure: string;
     none: string;
   },
@@ -151,15 +152,16 @@ export function buildTargetSummary(
   if (hasSets) {
     const s = target_sets!;
     if (!hasReps) return strings.setsFailure(s);
-    const min = target_reps_min!;
+    const min = target_reps_min ?? target_reps_max ?? 0;
     const max = target_reps_max ?? min;
     if (min === max) return strings.setsFixed(s, min);
     return strings.setsReps(s, min, max);
   }
 
   // No sets, has reps
-  const min = target_reps_min!;
+  const min = target_reps_min ?? target_reps_max ?? 0;
   const max = target_reps_max ?? min;
   if (min === 0 && max === 0) return strings.failure;
-  return strings.reps(min, max);
+  if (min === max) return strings.reps(min);
+  return strings.repsRange(min, max);
 }

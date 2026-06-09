@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -74,6 +75,17 @@ export default function WeeklyPlanScreen() {
     if (!db || !activePlan) return;
     clearDayAssignment(db, activePlan.id, weekday);
   };
+
+  // DB not ready yet
+  if (!db) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // No active plan → invite to pick template
   if (!activePlan) {
@@ -351,6 +363,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

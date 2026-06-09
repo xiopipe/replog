@@ -3,7 +3,7 @@
  */
 import { use$ } from '@legendapp/state/react';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -45,10 +45,20 @@ export default function RoutinesScreen() {
     [rawPlanDays, rawRoutines, rawRoutineExercises, activePlan],
   );
 
-  const getExerciseCount = (routineId: string): number =>
-    Object.values(rawRoutineExercises ?? {}).filter(
-      (re) => re.routine_id === routineId && !re.deleted_at,
-    ).length;
+  const exerciseCountMap = useMemo<Map<string, number>>(() => {
+    const map = new Map<string, number>();
+    for (const re of Object.values(rawRoutineExercises ?? {})) {
+      if (!re.deleted_at) {
+        map.set(re.routine_id, (map.get(re.routine_id) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [rawRoutineExercises]);
+
+  const getExerciseCount = useCallback(
+    (routineId: string): number => exerciseCountMap.get(routineId) ?? 0,
+    [exerciseCountMap],
+  );
 
   return (
     <Screen title={t('routines.title')}>
@@ -171,7 +181,7 @@ function RoutineListItem({
           {routine.name}
         </Text>
         <Text style={styles.routineCount}>
-          {t('routines.exercises_count_one', { count: exerciseCount })}
+          {t('routines.exercises_count', { count: exerciseCount })}
         </Text>
       </View>
       <Text style={styles.routineChevron}>{'›'}</Text>

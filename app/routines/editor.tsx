@@ -305,6 +305,23 @@ export default function RoutineEditorScreen() {
           {nameError && <Text style={styles.errorText}>{nameError}</Text>}
         </View>
 
+        {/* Notes field */}
+        <View style={styles.notesSection}>
+          <Text style={styles.fieldLabel}>{t('routine_editor.notes_label')}</Text>
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={t('routine_editor.notes_placeholder')}
+            placeholderTextColor={colors.textTertiary}
+            accessibilityLabel={t('routine_editor.notes_label')}
+            multiline
+            numberOfLines={3}
+            maxLength={500}
+            textAlignVertical="top"
+          />
+        </View>
+
         {/* Exercises section header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionLabel}>{t('routine_editor.exercises_section')}</Text>
@@ -325,7 +342,7 @@ export default function RoutineEditorScreen() {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyExercises}>
-              <Text style={styles.emptyText}>{t('routine_editor.exercises_section')}</Text>
+              <Text style={styles.emptyText}>{t('routine_editor.exercises_empty')}</Text>
             </View>
           }
           ListFooterComponent={
@@ -377,10 +394,10 @@ function ExerciseItem({
       t('routine_editor.target_summary_sets_fixed', { sets, reps }),
     setsFailure: (sets) =>
       t('routine_editor.target_summary_sets_failure', { sets }),
-    reps: (min, max) =>
-      min === max
-        ? t('routine_editor.target_summary_reps', { reps: min })
-        : t('routine_editor.target_summary_sets_reps', { sets: '', min, max }).trimStart(),
+    reps: (reps) =>
+      t('routine_editor.target_summary_reps', { reps }),
+    repsRange: (min, max) =>
+      t('routine_editor.target_summary_reps_range', { min, max }),
     failure: t('routine_editor.target_summary_failure'),
     none: t('routine_editor.target_summary_none'),
   });
@@ -520,32 +537,32 @@ function TargetEditorModal({
               label={t('routine_editor.target_sets_label')}
               value={sets}
               onChangeText={setSets}
-              placeholder="—"
+              placeholder={t('routine_editor.target_empty_placeholder')}
             />
             <TargetField
-              label={`${t('routine_editor.target_reps_label')} (mín)`}
+              label={t('routine_editor.target_reps_min_label')}
               value={repsMin}
               onChangeText={setRepsMin}
-              placeholder="—"
+              placeholder={t('routine_editor.target_empty_placeholder')}
             />
             <TargetField
-              label={`${t('routine_editor.target_reps_label')} (máx)`}
+              label={t('routine_editor.target_reps_max_label')}
               value={repsMax}
               onChangeText={setRepsMax}
-              placeholder="—"
+              placeholder={t('routine_editor.target_empty_placeholder')}
             />
             <TargetField
               label={t('routine_editor.target_weight_label')}
               value={weight}
               onChangeText={setWeight}
-              placeholder="—"
+              placeholder={t('routine_editor.target_empty_placeholder')}
               decimal
             />
             <TargetField
               label={t('routine_editor.target_rir_label')}
               value={rir}
               onChangeText={setRir}
-              placeholder="—"
+              placeholder={t('routine_editor.target_empty_placeholder')}
             />
           </ScrollView>
 
@@ -666,6 +683,22 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.error,
     marginTop: spacing.xs,
+  },
+
+  notesSection: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  notesInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    fontSize: 14,
+    minHeight: 72,
   },
 
   sectionHeader: {
