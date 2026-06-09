@@ -1,9 +1,13 @@
 /**
  * Catalog list screen.
  * Search + filter by muscle group, shows merged global + user exercises.
+ *
+ * Picker mode: when the route has a `pickFor=<routineId>` query param,
+ * tapping a row adds the exercise to that routine and navigates back
+ * instead of opening the exercise detail.
  */
 import { use$ } from '@legendapp/state/react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -27,11 +31,15 @@ import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
 import { getFilteredExercises } from '@/features/catalog/queries';
 import { ExerciseRow } from '@/features/catalog/ExerciseRow';
 import { MUSCLE_KEYS } from '@/features/catalog/constants';
+import { addExerciseToRoutine } from '@/features/routines/mutations';
 
 export default function CatalogScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { db } = useAuth();
+  const { db, session } = useAuth();
+  const { pickFor } = useLocalSearchParams<{ pickFor?: string }>();
+
+  const isPickerMode = !!pickFor;
 
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<MuscleEnum | null>(null);
@@ -41,6 +49,7 @@ export default function CatalogScreen() {
   const globalMuscles = use$(globalExerciseMuscles$);
   const rawUserExercises = use$(db?.userExercises$);
   const rawUserMuscles = use$(db?.userExerciseMuscles$);
+  const rawRoutineExercises = use$(db?.routineExercises$);
 
   const isLoading = globalExercises === null || globalMuscles === null;
 
@@ -75,6 +84,26 @@ export default function CatalogScreen() {
 
   const chipSelected = filterMuscle ?? '__all__';
 
+  /** In picker mode: add exercise to routine and go back. */
+  const handlePickerSelect = (exerciseId: string) => {
+    if (!db || !session || !pickFor) return;
+
+    // Compute the next order_index for this routine
+    const existing = Object.values(rawRoutineExercises ?? {}).filter(
+      (re) => re.routine_id === pickFor && !re.deleted_at,
+    );
+    const nextIndex = existing.length;
+
+    addExerciseToRoutine(db, {
+      routineId: pickFor,
+      exerciseId,
+      orderIndex: nextIndex,
+      userId: session.user.id,
+    });
+
+    router.back();
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Header */}
@@ -91,15 +120,17 @@ export default function CatalogScreen() {
         <Text style={styles.title} accessibilityRole="header">
           {t('catalog.title')}
         </Text>
-        <Pressable
-          onPress={() => router.push('/catalog/create')}
-          style={styles.addButton}
-          accessibilityRole="button"
-          accessibilityLabel={t('catalog.add_exercise')}
-          hitSlop={8}
-        >
-          <Ionicons name="add" size={26} color={colors.accent} />
-        </Pressable>
+        {!isPickerMode && (
+          <Pressable
+            onPress={() => router.push('/catalog/create')}
+            style={styles.addButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('catalog.add_exercise')}
+            hitSlop={8}
+          >
+            <Ionicons name="add" size={26} color={colors.accent} />
+          </Pressable>
+        )}
       </View>
 
       {/* Search */}
@@ -139,7 +170,11 @@ export default function CatalogScreen() {
           renderItem={({ item }) => (
             <ExerciseRow
               exercise={item}
-              onPress={() => router.push(`/catalog/${item.id}`)}
+              onPress={
+                isPickerMode
+                  ? () => handlePickerSelect(item.id)
+                  : () => router.push(`/catalog/${item.id}`)
+              }
             />
           )}
         />
