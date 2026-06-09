@@ -7,22 +7,36 @@
  *   2. Use `customSynced` to build per-entity observables (see entity modules).
  *   3. Use `generateId` wherever a client-side uuid is needed.
  *
- * SOFT DELETE NUANCE
- * ------------------
- * The schema uses `deleted_at timestamptz` (a nullable timestamp), NOT a boolean
- * `deleted` column. Legend-State's `fieldDeleted` option expects a boolean column
- * that it can flip — we do NOT set it here because it would try to write a column
- * that doesn't exist in that shape.
+ * SYNC MODE — full list (no last-sync)
+ * -------------------------------------
+ * We do NOT set `changesSince: 'last-sync'` anywhere in this project.
  *
- * Instead we handle soft-delete in two places:
- *   a) Every collection filter explicitly excludes soft-deleted rows via
- *      `.is('deleted_at', null)` — so they never appear in the local observable.
+ * Legend-State v3's last-sync mode requires a `fieldDeleted` option that points
+ * to a boolean column so the plugin can mark remotely-deleted rows for local
+ * removal on incremental fetches.  Our schema uses `deleted_at timestamptz`
+ * (nullable timestamp) for soft deletes — not a boolean column.  Setting
+ * `fieldDeleted: 'deleted_at'` is unsafe on the WRITE path: when Legend
+ * internally handles a hard `.delete()` call it writes `{ deleted_at: true }`,
+ * which would corrupt the timestamptz column in Postgres.
+ *
+ * Using the default full-list mode avoids the requirement for `fieldDeleted`
+ * entirely and removes the dev warning:
+ *   "WARN [legend-state] fieldDeleted is required when using last-sync mode"
+ *
+ * For MVP data sizes (hundreds of rows per user) a full list fetch on every
+ * sync cycle is fast enough.  If incremental sync becomes necessary later,
+ * the correct path is to add a separate boolean `is_deleted` column alongside
+ * `deleted_at` and wire that as `fieldDeleted`, OR move to the PowerSync /
+ * custom list approach described in docs/Architecture.md.
+ *
+ * SOFT DELETE
+ * -----------
+ * Soft-delete is handled in two places:
+ *   a) Every collection filter excludes soft-deleted rows via
+ *      `.is('deleted_at', null)` — they never appear in the local observable.
  *   b) The `softDelete` helper (exported below) writes `deleted_at = now()` +
  *      `updated_at = now()` as a normal update, then removes the entry from
  *      the local observable map so the UI sees it disappear immediately.
- *
- * This matches last-write-wins semantics: the timestamp update goes to Postgres
- * and the row will be excluded by the filter on any subsequent sync.
  */
 
 import { type Observable } from '@legendapp/state';
@@ -55,12 +69,11 @@ const sqlitePlugin = observablePersistSqlite(Storage);
 
 configureSyncedSupabase({
   generateId,
-  // Use incremental sync: only fetch rows changed since the last sync timestamp.
-  changesSince: 'last-sync',
   // Column names that match 01_schema.sql exactly.
+  // changesSince is intentionally omitted (defaults to full-list mode).
+  // See SYNC MODE comment above for the full rationale.
   fieldCreatedAt: 'created_at',
   fieldUpdatedAt: 'updated_at',
-  // Do NOT set fieldDeleted — see SOFT DELETE NUANCE above.
 });
 
 // ---------------------------------------------------------------------------

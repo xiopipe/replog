@@ -37,7 +37,6 @@ export function createGlobalExercisesObservable(): Observable<Record<string, Exe
       filter: (select: any) => select.is('user_id', null),
       realtime: false, // global catalog changes only via DB migrations; no realtime needed
       persist: { name: 'exercises_global', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read'],
     }),
   ) as unknown as Observable<Record<string, ExerciseRow>>;
@@ -56,7 +55,6 @@ export function createUserExercisesObservable(uid: string): Observable<Record<st
       filter: (select: any) => select.eq('user_id', uid).is('deleted_at', null),
       realtime: { filter: `user_id=eq.${uid}` },
       persist: { name: 'exercises_user', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read', 'create', 'update'],
     }),
   ) as unknown as Observable<Record<string, ExerciseRow>>;

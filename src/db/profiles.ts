@@ -33,7 +33,6 @@ export function createProfilesObservable(uid: string): Observable<Record<string,
       filter: (select: any) => select.eq('id', uid),
       realtime: { filter: `id=eq.${uid}` },
       persist: { name: 'profiles', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read', 'create', 'update'],
     }),
   ) as unknown as Observable<Record<string, ProfileRow>>;

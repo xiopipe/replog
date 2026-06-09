@@ -23,7 +23,6 @@ export function createSessionExercisesObservable(uid: string): Observable<Record
       filter: (select: any) => select.eq('user_id', uid).is('deleted_at', null),
       realtime: { filter: `user_id=eq.${uid}` },
       persist: { name: 'session_exercises', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read', 'create', 'update'],
     }),
   ) as unknown as Observable<Record<string, SessionExerciseRow>>;

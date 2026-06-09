@@ -22,7 +22,6 @@ export function createRoutinesObservable(uid: string): Observable<Record<string,
       filter: (select: any) => select.eq('user_id', uid).is('deleted_at', null),
       realtime: { filter: `user_id=eq.${uid}` },
       persist: { name: 'routines', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read', 'create', 'update'],
     }),
   ) as unknown as Observable<Record<string, RoutineRow>>;

@@ -44,7 +44,6 @@ export function createGlobalExerciseMusclesObservable(): Observable<Record<strin
       // We persist all readable muscle mappings so the catalog works offline.
       realtime: false,
       persist: { name: 'exercise_muscles_global', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read'],
     }),
   ) as unknown as Observable<Record<string, ExerciseMuscleRow>>;
@@ -69,7 +68,6 @@ export function createUserExerciseMusclesObservable(_uid: string): Observable<Re
       // use if a view exposing user_id is added.
       realtime: true, // RLS-scoped; no column filter needed
       persist: { name: 'exercise_muscles_user', retrySync: true },
-      changesSince: 'last-sync',
       actions: ['read', 'create', 'update'],
     }),
   ) as unknown as Observable<Record<string, ExerciseMuscleRow>>;
