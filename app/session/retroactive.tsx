@@ -34,7 +34,6 @@ export default function RetroactiveSessionScreen() {
   const [date, setDate] = useState(new Date());
   const [name, setName] = useState('');
   const [showPicker, setShowPicker] = useState(Platform.OS === 'ios');
-  const [loading, setLoading] = useState(false);
 
   const handleDateChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== 'ios') setShowPicker(false);
@@ -43,14 +42,12 @@ export default function RetroactiveSessionScreen() {
 
   const handleStart = () => {
     if (!db || !session?.user?.id) return;
-    setLoading(true);
 
     const sessionId = createRetroactiveSession(db, session.user.id, {
       startedAt: date.toISOString(),
       name: name.trim() || undefined,
     });
 
-    setLoading(false);
     router.replace(`/session/${sessionId}`);
   };
 
@@ -95,7 +92,7 @@ export default function RetroactiveSessionScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('session.retroactive_date_label')}
           >
-            <Text style={styles.dateButtonText}>{date.toLocaleString('es')}</Text>
+            <Text style={styles.dateButtonText}>{date.toLocaleString()}</Text>
             <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
           </Pressable>
         )}
@@ -114,8 +111,7 @@ export default function RetroactiveSessionScreen() {
         {/* Start button */}
         <Pressable
           onPress={handleStart}
-          disabled={loading}
-          style={[styles.startButton, loading && styles.startButtonDisabled]}
+          style={styles.startButton}
           accessibilityRole="button"
           accessibilityLabel={t('session.retroactive_start')}
         >
@@ -183,6 +179,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.md,
   },
-  startButtonDisabled: { opacity: 0.5 },
   startButtonText: { ...typography.section, color: colors.onAccent, fontSize: 15 },
 });

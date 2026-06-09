@@ -7,7 +7,9 @@
     "loading": "Cargando…",
     "retry": "Reintentar",
     "error_generic": "Algo salió mal. Inténtalo de nuevo.",
-    "required": "Campo obligatorio"
+    "required": "Campo obligatorio",
+    "decrement": "{{label}} menos",
+    "increment": "{{label}} más"
   },
   "auth": {
     "login_title": "Iniciar sesión",
@@ -241,6 +243,9 @@
     "skip_yes": "Saltar",
     "warmup_label": "Calentamiento",
     "warmup_hint": "Marcar como calentamiento",
+    "warmup": "C",
+    "mark_warmup": "Marcar/desmarcar calentamiento",
+    "add_warmup_set": "+ Serie calentamiento",
     "reached_failure_label": "Al fallo",
     "no_exercises": "Sin ejercicios en esta sesión.",
     "loading": "Cargando sesión…",

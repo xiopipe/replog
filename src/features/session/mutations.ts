@@ -543,9 +543,19 @@ export function swapExercise(
 
 /**
  * Skip (soft-delete) a session_exercise mid-session.
+ * Sets ended_at = now (closes the exercise timer) then soft-deletes the row.
  * Leaves order_index gaps; queries sort+filter so display is unaffected.
  */
 export function skipExercise(db: UserObservables, sessionExerciseId: string): void {
+  const now = new Date().toISOString();
+  // Close the exercise timer first (no-op if already closed)
+  (db.sessionExercises$ as any)[sessionExerciseId].set(
+    (prev: SessionExerciseRow) => ({
+      ...prev,
+      ended_at: prev.ended_at ?? now,
+      updated_at: now,
+    }),
+  );
   softDelete(db.sessionExercises$, sessionExerciseId);
 }
 

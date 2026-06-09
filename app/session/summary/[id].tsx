@@ -36,7 +36,7 @@ import {
   getSessionExercises,
   summarizeSession,
 } from '@/features/session/queries';
-import type { MusclesByExerciseId } from '@/lib/hypertrophy';
+import type { MusclesBySessionExerciseId } from '@/lib/hypertrophy';
 
 // Ordered muscle display list (8 groups from Exercise-Catalog.md)
 const MUSCLE_ORDER: MuscleEnum[] = [
@@ -92,8 +92,8 @@ export default function SessionSummaryScreen() {
   );
 
   // Build musclesBySeId: session_exercise_id → muscle contributions
-  const musclesBySeId: MusclesByExerciseId = useMemo(() => {
-    const map: MusclesByExerciseId = {};
+  const musclesBySeId: MusclesBySessionExerciseId = useMemo(() => {
+    const map: MusclesBySessionExerciseId = {};
     for (const se of sessionExercises) {
       const exerciseMuscles = Object.values(allMuscles).filter(
         (m) => m.exercise_id === se.exercise_id,
@@ -160,7 +160,7 @@ export default function SessionSummaryScreen() {
 
   // ── Duration ──────────────────────────────────────────────────────────────
   const durationDisplay = useMemo(() => {
-    if (!summary?.durationMs) return '--:--';
+    if (summary?.durationMs == null) return '--:--';
     return formatMmSs(Math.floor(summary.durationMs / 1000));
   }, [summary]);
 

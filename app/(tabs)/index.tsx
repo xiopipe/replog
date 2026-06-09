@@ -100,7 +100,7 @@ export default function HomeScreen() {
   };
 
   const handleStartFromRoutine = () => {
-    if (!db || !session?.user?.id) return;
+    if (!db || !session?.user?.id || activeSession) return;
 
     const todayRoutine = todaySummary?.routine;
     if (!todayRoutine) return;
@@ -115,7 +115,7 @@ export default function HomeScreen() {
   };
 
   const handleRepeatLast = () => {
-    if (!db || !session?.user?.id) return;
+    if (!db || !session?.user?.id || activeSession) return;
     const sessionId = repeatLastSession(db, session.user.id);
     if (sessionId) {
       router.push(`/session/${sessionId}`);

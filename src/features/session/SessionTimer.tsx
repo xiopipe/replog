@@ -65,7 +65,7 @@ export function SessionTimer({ startedAt, style, accessibilityLabel }: SessionTi
     <Text
       style={[styles.text, style]}
       accessibilityLabel={accessibilityLabel ?? display}
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion="none"
     >
       {display}
     </Text>

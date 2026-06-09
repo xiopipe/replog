@@ -35,6 +35,7 @@ export interface SetRowProps {
   onConfirm: (patch: Partial<SetRowData>) => void;
   onDelete?: () => void;
   onSelectionToggle?: () => void;
+  onToggleWarmup?: () => void;
 }
 
 function NumericField({
@@ -56,12 +57,13 @@ function NumericField({
   allowDecimal?: boolean;
   label: string;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={fieldStyles.wrapper}>
       <Pressable
         onPress={onDecrement}
         style={fieldStyles.stepper}
-        accessibilityLabel={`${label} menos`}
+        accessibilityLabel={t('common.decrement', { label })}
         hitSlop={4}
       >
         <Ionicons name="remove" size={14} color={colors.textSecondary} />
@@ -78,7 +80,7 @@ function NumericField({
       <Pressable
         onPress={onIncrement}
         style={fieldStyles.stepper}
-        accessibilityLabel={`${label} más`}
+        accessibilityLabel={t('common.increment', { label })}
         hitSlop={4}
       >
         <Ionicons name="add" size={14} color={colors.textSecondary} />
@@ -122,6 +124,7 @@ export function SetRow({
   onConfirm,
   onDelete,
   onSelectionToggle,
+  onToggleWarmup,
 }: SetRowProps) {
   const { t } = useTranslation();
   const isWarmup = set.is_warmup;
@@ -174,16 +177,17 @@ export function SetRow({
       {/* Drop-group indicator */}
       {dropGroup ? <View style={styles.dropIndicator} /> : null}
 
-      {/* Index */}
+      {/* Index / warmup toggle */}
       <Pressable
         style={styles.indexCell}
+        onPress={onSelectionToggle ? undefined : onToggleWarmup}
         onLongPress={onSelectionToggle}
-        accessibilityLabel={t('session.warmup_hint')}
+        accessibilityLabel={t('session.mark_warmup')}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: isWarmup }}
       >
-        <Text style={[styles.indexText, { opacity: warmupOpacity }]}>
-          {isWarmup ? 'C' : String(index + 1)}
+        <Text style={[styles.indexText, isWarmup && styles.indexTextWarmup, { opacity: warmupOpacity }]}>
+          {isWarmup ? t('session.warmup') : String(index + 1)}
         </Text>
       </Pressable>
 
@@ -267,7 +271,6 @@ export function SetRow({
         />
       </Pressable>
 
-      {/* Long-press: warmup toggle & delete are handled via selection/menu */}
     </View>
   );
 }
@@ -309,6 +312,10 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textSecondary,
     fontWeight: '500',
+  },
+  indexTextWarmup: {
+    color: colors.accent,
+    fontWeight: '700',
   },
   fieldCell: {
     alignItems: 'center',

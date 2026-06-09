@@ -83,11 +83,11 @@ export function estimated1RM(
 // ---------------------------------------------------------------------------
 
 /**
- * A condensed view of exercise_muscles rows keyed by exercise_id.
+ * A condensed view of exercise_muscles rows keyed by session_exercise_id.
  * Callers build this from the observable snapshots so this file stays
  * framework-agnostic.
  */
-export type MusclesByExerciseId = Record<
+export type MusclesBySessionExerciseId = Record<
   string,
   Pick<ExerciseMuscleRow, 'muscle' | 'contribution'>[]
 >;
@@ -109,7 +109,7 @@ export type MusclesByExerciseId = Record<
  */
 export function fractionalVolumeByMuscle(
   sets: SetRow[],
-  musclesByExerciseId: MusclesByExerciseId,
+  musclesByExerciseId: MusclesBySessionExerciseId,
 ): Partial<Record<MuscleEnum, number>> {
   const volume: Partial<Record<MuscleEnum, number>> = {};
 
@@ -122,8 +122,8 @@ export function fractionalVolumeByMuscle(
     if (set.deleted_at) continue;
 
     // Resolve the exercise for this set via session_exercise → we receive the
-    // exercise_id keyed maps, so the caller must map session_exercise_id → exercise_id
-    // before calling here.  This function accepts a pre-keyed map for testability.
+    // session_exercise_id keyed map, so the caller must build it from session_exercises.
+    // This function accepts a pre-keyed map for testability.
     const muscles = musclesByExerciseId[set.session_exercise_id];
     if (!muscles) continue;
 

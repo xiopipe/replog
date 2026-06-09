@@ -7,6 +7,7 @@
  */
 
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors, spacing, TOUCH_TARGET } from '@/lib/theme';
 
@@ -17,6 +18,8 @@ export interface ExercisePagerProps {
 }
 
 export function ExercisePager({ total, currentIndex, onSelect }: ExercisePagerProps) {
+  const { t } = useTranslation();
+
   if (total <= 1) return null;
 
   return (
@@ -30,7 +33,7 @@ export function ExercisePager({ total, currentIndex, onSelect }: ExercisePagerPr
             style={styles.dotWrapper}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
-            accessibilityLabel={`Ejercicio ${i + 1} de ${total}`}
+            accessibilityLabel={t('session.exercise_progress', { current: i + 1, total })}
             hitSlop={8}
           >
             <View style={[styles.dot, isActive ? styles.dotActive : styles.dotInactive]} />

@@ -20,7 +20,7 @@ import {
   estimated1RM,
   effectiveSetCount,
   fractionalVolumeByMuscle,
-  type MusclesByExerciseId,
+  type MusclesBySessionExerciseId,
 } from '@/lib/hypertrophy';
 
 // ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ export function summarizeSession(
   sessionExercises: Record<string, SessionExerciseRow>,
   sets: Record<string, SetRow>,
   allSessions: Record<string, WorkoutSessionRow>,
-  musclesBySeId: MusclesByExerciseId,
+  musclesBySeId: MusclesBySessionExerciseId,
 ): SessionSummary {
   const durationMs =
     session.started_at && session.ended_at

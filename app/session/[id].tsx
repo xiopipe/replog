@@ -40,6 +40,7 @@ import {
   getUserUnitPreference,
   getUserDefaultFailureMetric,
 } from '@/features/session/queries';
+import { toCanonicalKg } from '@/lib/hypertrophy';
 import {
   addSet,
   duplicateSet,
@@ -93,6 +94,9 @@ export default function ActiveSessionScreen() {
   // ── PR celebration state ──────────────────────────────────────────────────
   const [prInfo, setPrInfo] = useState<PRInfo | null>(null);
 
+  // ── PR badge dismiss ──────────────────────────────────────────────────────
+  const handleDismissPR = useCallback(() => setPrInfo(null), []);
+
   // ── Dropset selection mode ────────────────────────────────────────────────
   const [dropsetSelection, setDropsetSelection] = useState<Set<string>>(new Set());
   const [isSelectingDropset, setIsSelectingDropset] = useState(false);
@@ -142,8 +146,28 @@ export default function ActiveSessionScreen() {
 
       updateSet(db, setId, patch);
 
+      // Build the merged candidate with locally computed weight_kg so PR
+      // detection never reads the stale snapshot (which may still be null).
+      const existing = rawSets?.[setId] ?? ({} as Partial<SetRowData>);
+      const mergedWeightValue = 'weight_value' in patch ? patch.weight_value : existing.weight_value;
+      const mergedWeightUnit = 'weight_unit' in patch ? patch.weight_unit : existing.weight_unit;
+      const computedWeightKg =
+        mergedWeightValue != null && mergedWeightUnit != null
+          ? toCanonicalKg(mergedWeightValue, mergedWeightUnit as 'kg' | 'lb')
+          : (existing.weight_kg ?? null);
+
+      // Reflect current is_warmup: patch wins, else read latest snapshot
+      const currentIsWarmup =
+        patch.is_warmup !== undefined ? patch.is_warmup : (rawSets?.[setId]?.is_warmup ?? false);
+
+      const updatedSet = {
+        ...existing,
+        ...patch,
+        weight_kg: computedWeightKg,
+        is_warmup: currentIsWarmup,
+      } as SetRowData;
+
       // PR detection — only for working sets
-      const updatedSet = { ...(rawSets?.[setId] ?? {}), ...patch } as SetRowData;
       if (!updatedSet.is_warmup && updatedSet.reps && updatedSet.weight_kg != null) {
         const history = getExerciseHistorySets(
           rawSets ?? {},
@@ -185,6 +209,23 @@ export default function ActiveSessionScreen() {
       is_warmup: false,
     });
   }, [db, currentSE, currentSets, userId, userUnit, defaultFailureMetric]);
+
+  // ── Add warmup set ────────────────────────────────────────────────────────
+  const handleAddWarmupSet = useCallback(() => {
+    if (!db || !currentSE) return;
+
+    const lastWarmup = [...currentSets].reverse().find((s) => s.is_warmup);
+    addSet(db, currentSE.id, {
+      userId,
+      weight_value: lastWarmup?.weight_value ?? null,
+      weight_unit: lastWarmup?.weight_unit ?? userUnit,
+      reps: lastWarmup?.reps ?? null,
+      failure_metric: 'none',
+      rir: null,
+      rpe: null,
+      is_warmup: true,
+    });
+  }, [db, currentSE, currentSets, userId, userUnit]);
 
   // ── Duplicate last set ────────────────────────────────────────────────────
   const handleDuplicateSet = useCallback(() => {
@@ -383,7 +424,7 @@ export default function ActiveSessionScreen() {
           exerciseName={prInfo.exerciseName}
           weight={prInfo.weight}
           reps={prInfo.reps}
-          onDismiss={() => setPrInfo(null)}
+          onDismiss={handleDismissPR}
         />
       ) : null}
 
@@ -493,6 +534,7 @@ export default function ActiveSessionScreen() {
             }
             onDelete={() => deleteSet(db, set.id)}
             onSelectionToggle={isSelectingDropset ? () => toggleSetSelection(set.id) : undefined}
+            onToggleWarmup={() => updateSet(db, set.id, { is_warmup: !set.is_warmup })}
           />
         ))}
 
@@ -511,7 +553,7 @@ export default function ActiveSessionScreen() {
           </View>
         ) : null}
 
-        {/* ── Add / Duplicate buttons ── */}
+        {/* ── Add / Duplicate / Warmup buttons ── */}
         {!isFinishedSession && currentExercise ? (
           <View style={styles.setActions}>
             <Pressable
@@ -529,6 +571,14 @@ export default function ActiveSessionScreen() {
               accessibilityLabel={t('session.duplicate_set')}
             >
               <Text style={styles.setActionText}>{t('session.duplicate_set')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleAddWarmupSet}
+              style={styles.setActionButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('session.add_warmup_set')}
+            >
+              <Text style={styles.setActionText}>{t('session.add_warmup_set')}</Text>
             </Pressable>
           </View>
         ) : null}
