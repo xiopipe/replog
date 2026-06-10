@@ -24,6 +24,7 @@
  * They are exported directly from this module for convenience.
  */
 
+import { observe } from '@legendapp/state';
 import { createProfilesObservable } from './profiles';
 import {
   createGlobalExercisesObservable,
@@ -90,7 +91,7 @@ export interface UserObservables {
  * @returns   - A bundle of observables for all user-data entities.
  */
 export function createUserObservables(uid: string): UserObservables {
-  return {
+  const db: UserObservables = {
     profiles$: createProfilesObservable(uid),
     userExercises$: createUserExercisesObservable(uid),
     userExerciseMuscles$: createUserExerciseMusclesObservable(uid),
@@ -102,4 +103,25 @@ export function createUserObservables(uid: string): UserObservables {
     sessionExercises$: createSessionExercisesObservable(uid),
     sets$: createSetsObservable(uid),
   };
+
+  // Synced observables are lazy: they only start syncing once observed. A
+  // workout logged while offline must back up to Supabase as soon as
+  // connectivity returns — even if the user never reopens that screen. This
+  // app-lifetime observer touches every collection so all of them activate
+  // their sync (initial fetch + realtime + offline retry queue) at login,
+  // independent of navigation. The body is a no-op read, so re-runs are cheap.
+  observe(() => {
+    db.profiles$.get();
+    db.userExercises$.get();
+    db.userExerciseMuscles$.get();
+    db.routines$.get();
+    db.routineExercises$.get();
+    db.plans$.get();
+    db.planDays$.get();
+    db.workoutSessions$.get();
+    db.sessionExercises$.get();
+    db.sets$.get();
+  });
+
+  return db;
 }
