@@ -3,7 +3,7 @@
  * Shows the muscle figure, instructions ("How to" tab), and best 1RM card.
  * History tab: past sets for this exercise + best estimated 1RM.
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,13 +42,13 @@ export default function ExerciseDetailScreen() {
   const { db, session: authSession } = useAuth();
   const userId = authSession?.user?.id ?? '';
 
-  const globalExercises = use$(globalExercises$);
-  const globalMuscles = use$(globalExerciseMuscles$);
-  const rawUserExercises = use$(db?.userExercises$);
-  const rawUserMuscles = use$(db?.userExerciseMuscles$);
-  const rawSets = use$(db?.sets$);
-  const rawSessionExercises = use$(db?.sessionExercises$);
-  const rawProfiles = use$(db?.profiles$);
+  const globalExercises = useRows(globalExercises$);
+  const globalMuscles = useRows(globalExerciseMuscles$);
+  const rawUserExercises = useRows(db?.userExercises$);
+  const rawUserMuscles = useRows(db?.userExerciseMuscles$);
+  const rawSets = useRows(db?.sets$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawProfiles = useRows(db?.profiles$);
 
   const exercise = useMemo(
     () =>

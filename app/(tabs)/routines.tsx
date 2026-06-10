@@ -1,7 +1,7 @@
 /**
  * Routines tab — hub for weekly plan, routine list, and templates.
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,10 +26,10 @@ export default function RoutinesScreen() {
   const router = useRouter();
   const { db } = useAuth();
 
-  const rawRoutines = use$(db?.routines$);
-  const rawPlans = use$(db?.plans$);
-  const rawPlanDays = use$(db?.planDays$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
+  const rawRoutines = useRows(db?.routines$);
+  const rawPlans = useRows(db?.plans$);
+  const rawPlanDays = useRows(db?.planDays$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
 
   const activePlan = useMemo(() => getActivePlan(rawPlans ?? {}), [rawPlans]);
   const routines = useMemo(() => getRoutines(rawRoutines ?? {}), [rawRoutines]);

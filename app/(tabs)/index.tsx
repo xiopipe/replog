@@ -12,7 +12,7 @@
  *  - Active plan with today's routine → routine card + start/resume
  *  - Active plan, today = rest → rest message
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,11 +50,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const { db, session } = useAuth();
 
-  const rawPlans = use$(db?.plans$);
-  const rawPlanDays = use$(db?.planDays$);
-  const rawRoutines = use$(db?.routines$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
-  const rawSessions = use$(db?.workoutSessions$);
+  const rawPlans = useRows(db?.plans$);
+  const rawPlanDays = useRows(db?.planDays$);
+  const rawRoutines = useRows(db?.routines$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
+  const rawSessions = useRows(db?.workoutSessions$);
 
   const isLoading = !db;
 

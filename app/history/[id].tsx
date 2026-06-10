@@ -9,7 +9,7 @@
  */
 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -94,14 +94,14 @@ export default function SessionDetailScreen() {
   const userId = authSession?.user?.id ?? '';
 
   // Observable reads
-  const rawSessions = use$(db?.workoutSessions$);
-  const rawSessionExercises = use$(db?.sessionExercises$);
-  const rawSets = use$(db?.sets$);
-  const rawProfiles = use$(db?.profiles$);
-  const globalExercises = use$(globalExercises$);
-  const rawUserExercises = use$(db?.userExercises$);
-  const globalMuscles = use$(globalExerciseMuscles$);
-  const rawUserMuscles = use$(db?.userExerciseMuscles$);
+  const rawSessions = useRows(db?.workoutSessions$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSets = useRows(db?.sets$);
+  const rawProfiles = useRows(db?.profiles$);
+  const globalExercises = useRows(globalExercises$);
+  const rawUserExercises = useRows(db?.userExercises$);
+  const globalMuscles = useRows(globalExerciseMuscles$);
+  const rawUserMuscles = useRows(db?.userExerciseMuscles$);
 
   // Local state for editing started_at via native date picker
   const [showDatePicker, setShowDatePicker] = useState(false);

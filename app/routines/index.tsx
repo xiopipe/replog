@@ -2,7 +2,7 @@
  * Routines list screen — shows user's routines with entry to create/edit.
  * This is the main content when navigating from the Routines tab.
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -30,8 +30,8 @@ export default function RoutinesListScreen() {
   const router = useRouter();
   const { db } = useAuth();
 
-  const rawRoutines = use$(db?.routines$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
+  const rawRoutines = useRows(db?.routines$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
 
   const isLoading = rawRoutines === undefined || rawRoutines === null;
 

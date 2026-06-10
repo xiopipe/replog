@@ -9,15 +9,13 @@
  * "Siguiente ejercicio →" or "Finalizar" primary action.
  */
 
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ActionSheetIOS,
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -53,6 +51,7 @@ import {
   finishSession,
 } from '@/features/session/mutations';
 
+import { ActionMenu } from '@/components/ActionMenu';
 import { SessionTimer } from '@/features/session/SessionTimer';
 import { ExercisePager } from '@/features/session/ExercisePager';
 import { SetRow } from '@/features/session/SetRow';
@@ -81,12 +80,12 @@ export default function ActiveSessionScreen() {
   const userId = session?.user?.id ?? '';
 
   // ── Observable reads ──────────────────────────────────────────────────────
-  const rawSessions = use$(db?.workoutSessions$);
-  const rawSessionExercises = use$(db?.sessionExercises$);
-  const rawSets = use$(db?.sets$);
-  const rawProfiles = use$(db?.profiles$);
-  const globalExercises = use$(globalExercises$);
-  const rawUserExercises = use$(db?.userExercises$);
+  const rawSessions = useRows(db?.workoutSessions$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSets = useRows(db?.sets$);
+  const rawProfiles = useRows(db?.profiles$);
+  const globalExercises = useRows(globalExercises$);
+  const rawUserExercises = useRows(db?.userExercises$);
 
   // ── Current exercise index (local) ────────────────────────────────────────
   const [exerciseIndex, setExerciseIndex] = useState(0);
@@ -100,6 +99,9 @@ export default function ActiveSessionScreen() {
   // ── Dropset selection mode ────────────────────────────────────────────────
   const [dropsetSelection, setDropsetSelection] = useState<Set<string>>(new Set());
   const [isSelectingDropset, setIsSelectingDropset] = useState(false);
+
+  // ── Exercise action menu ──────────────────────────────────────────────────
+  const [menuVisible, setMenuVisible] = useState(false);
 
   // ── Derive data ───────────────────────────────────────────────────────────
   const currentSession = useMemo(
@@ -312,49 +314,20 @@ export default function ActiveSessionScreen() {
     [db, sessionId, currentSE, safeIndex, sessionExercises, router, t],
   );
 
-  const showMenu = useCallback(() => {
-    const options = [
-      t('session.menu_add_exercise'),
-      t('session.menu_swap_exercise'),
-      t('session.menu_skip_exercise'),
-      t('session.menu_group_superset'),
-      t('session.menu_group_dropset'),
-      t('common.cancel'),
-    ];
+  const showMenu = useCallback(() => setMenuVisible(true), []);
 
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: options.length - 1 },
-        (idx) => handleMenuAction(idx),
-      );
-    } else {
-      // Android: Alert-based menu
-      Alert.alert(t('session.exercise_menu_title'), undefined, [
-        {
-          text: t('session.menu_add_exercise'),
-          onPress: () => handleMenuAction(0),
-        },
-        {
-          text: t('session.menu_swap_exercise'),
-          onPress: () => handleMenuAction(1),
-        },
-        {
-          text: t('session.menu_skip_exercise'),
-          style: 'destructive',
-          onPress: () => handleMenuAction(2),
-        },
-        {
-          text: t('session.menu_group_superset'),
-          onPress: () => handleMenuAction(3),
-        },
-        {
-          text: t('session.menu_group_dropset'),
-          onPress: () => handleMenuAction(4),
-        },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
-    }
-  }, [t, handleMenuAction]);
+  // Cross-platform action menu (native Android Alert silently drops options
+  // beyond three — including cancel — so we use a Modal-based sheet instead).
+  const menuOptions = useMemo(
+    () => [
+      { label: t('session.menu_add_exercise'), onPress: () => handleMenuAction(0) },
+      { label: t('session.menu_swap_exercise'), onPress: () => handleMenuAction(1) },
+      { label: t('session.menu_skip_exercise'), onPress: () => handleMenuAction(2), destructive: true },
+      { label: t('session.menu_group_superset'), onPress: () => handleMenuAction(3) },
+      { label: t('session.menu_group_dropset'), onPress: () => handleMenuAction(4) },
+    ],
+    [t, handleMenuAction],
+  );
 
   const handleConfirmDropset = useCallback(() => {
     if (!db || dropsetSelection.size < 2) {
@@ -418,6 +391,14 @@ export default function ActiveSessionScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
+      {/* Exercise action menu (add / swap / skip / superset / dropset) */}
+      <ActionMenu
+        visible={menuVisible}
+        title={t('session.exercise_menu_title')}
+        options={menuOptions}
+        onClose={() => setMenuVisible(false)}
+      />
+
       {/* PR Badge (absolute overlay) */}
       {prInfo ? (
         <PRBadge

@@ -7,7 +7,7 @@
  * Wireframe: docs/UI-Mockups/history.svg
  */
 
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -227,11 +227,11 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { db } = useAuth();
 
-  const rawSessions = use$(db?.workoutSessions$);
-  const rawSessionExercises = use$(db?.sessionExercises$);
-  const rawSets = use$(db?.sets$);
-  const globalMuscles = use$(globalExerciseMuscles$);
-  const rawUserMuscles = use$(db?.userExerciseMuscles$);
+  const rawSessions = useRows(db?.workoutSessions$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSets = useRows(db?.sets$);
+  const globalMuscles = useRows(globalExerciseMuscles$);
+  const rawUserMuscles = useRows(db?.userExerciseMuscles$);
 
   // Compute sections unconditionally (before any early return)
   const sections = useSections(

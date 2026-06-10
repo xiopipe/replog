@@ -7,7 +7,7 @@
  *   pickForSession=<sessionId>  — session "add exercise" picker
  *   swapSession=<sessionId>&swapSE=<seId> — session "swap exercise" picker
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -60,11 +60,11 @@ export default function CatalogScreen() {
   const [filterMuscle, setFilterMuscle] = useState<MuscleEnum | null>(null);
 
   // Reactive reads — these re-render when the observable changes
-  const globalExercises = use$(globalExercises$);
-  const globalMuscles = use$(globalExerciseMuscles$);
-  const rawUserExercises = use$(db?.userExercises$);
-  const rawUserMuscles = use$(db?.userExerciseMuscles$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
+  const globalExercises = useRows(globalExercises$);
+  const globalMuscles = useRows(globalExerciseMuscles$);
+  const rawUserExercises = useRows(db?.userExercises$);
+  const rawUserMuscles = useRows(db?.userExerciseMuscles$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
 
   const isLoading = globalExercises === null || globalMuscles === null;
 

@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 
 import { useAuth } from '@/lib/auth';
 import { globalExercises$ } from '@/db';
@@ -28,7 +28,7 @@ export default function TemplatesScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { db, session } = useAuth();
-  const globalExercises = use$(globalExercises$);
+  const globalExercises = useRows(globalExercises$);
 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);

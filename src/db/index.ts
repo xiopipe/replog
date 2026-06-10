@@ -37,6 +37,9 @@ export type {
 // Sync utilities
 export { generateId, softDelete, customSynced } from './sync';
 
+// Reactive collection read hook (use instead of raw use$ for collections)
+export { useRows } from './use-rows';
+
 // Global (read-only) catalog observables
 export { globalExercises$, globalExerciseMuscles$ } from './user-observables';
 

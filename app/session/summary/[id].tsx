@@ -13,7 +13,7 @@
  * Mirrors session-summary.svg wireframe exactly.
  */
 
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -58,13 +58,13 @@ export default function SessionSummaryScreen() {
   const { db } = useAuth();
 
   // ── Observable reads ──────────────────────────────────────────────────────
-  const rawSessions = use$(db?.workoutSessions$);
-  const rawSessionExercises = use$(db?.sessionExercises$);
-  const rawSets = use$(db?.sets$);
-  const globalExercises = use$(globalExercises$);
-  const globalMuscles = use$(globalExerciseMuscles$);
-  const rawUserExercises = use$(db?.userExercises$);
-  const rawUserMuscles = use$(db?.userExerciseMuscles$);
+  const rawSessions = useRows(db?.workoutSessions$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSets = useRows(db?.sets$);
+  const globalExercises = useRows(globalExercises$);
+  const globalMuscles = useRows(globalExerciseMuscles$);
+  const rawUserExercises = useRows(db?.userExercises$);
+  const rawUserMuscles = useRows(db?.userExerciseMuscles$);
 
   // ── Merge catalogs ────────────────────────────────────────────────────────
   const allExercises: Record<string, ExerciseRow> = useMemo(

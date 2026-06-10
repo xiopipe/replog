@@ -13,7 +13,7 @@
  *   Account / sign out
  */
 
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -192,7 +192,7 @@ export default function SettingsScreen() {
   const { db, session, signOut } = useAuth();
   const userId = session?.user?.id ?? '';
 
-  const rawProfiles = use$(db?.profiles$);
+  const rawProfiles = useRows(db?.profiles$);
 
   const profile = useMemo(
     () => (rawProfiles ? getProfile(rawProfiles, userId) : null),

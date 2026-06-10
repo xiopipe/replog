@@ -5,7 +5,7 @@
  * Each row shows the assigned routine name or "Descanso" (implicit rest).
  * "Edit" mode allows assigning or clearing routines per day.
  */
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -39,10 +39,10 @@ export default function WeeklyPlanScreen() {
   const [editMode, setEditMode] = useState(false);
   const [pickingDay, setPickingDay] = useState<number | null>(null);
 
-  const rawPlans = use$(db?.plans$);
-  const rawPlanDays = use$(db?.planDays$);
-  const rawRoutines = use$(db?.routines$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
+  const rawPlans = useRows(db?.plans$);
+  const rawPlanDays = useRows(db?.planDays$);
+  const rawRoutines = useRows(db?.routines$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
 
   const activePlan = useMemo(
     () => getActivePlan(rawPlans ?? {}),

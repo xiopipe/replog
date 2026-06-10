@@ -12,7 +12,7 @@
  *  - Save validates name + ≥1 exercise
  */
 import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist';
-import { use$ } from '@legendapp/state/react';
+import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -61,10 +61,10 @@ export default function RoutineEditorScreen() {
   const { db, session } = useAuth();
 
   // Observables
-  const rawRoutines = use$(db?.routines$);
-  const rawRoutineExercises = use$(db?.routineExercises$);
-  const globalExercises = use$(globalExercises$);
-  const rawUserExercises = use$(db?.userExercises$);
+  const rawRoutines = useRows(db?.routines$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
+  const globalExercises = useRows(globalExercises$);
+  const rawUserExercises = useRows(db?.userExercises$);
 
   // Local state
   const [name, setName] = useState('');
