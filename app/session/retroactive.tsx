@@ -8,6 +8,7 @@
  */
 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { openAndroidDateTime } from '@/lib/datetime-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +39,14 @@ export default function RetroactiveSessionScreen() {
   const handleDateChange = (_event: DateTimePickerEvent, selected?: Date) => {
     if (Platform.OS !== 'ios') setShowPicker(false);
     if (selected) setDate(selected);
+  };
+
+  const openPicker = () => {
+    if (Platform.OS === 'ios') {
+      setShowPicker(true);
+      return;
+    }
+    openAndroidDateTime({ value: date, maximumDate: new Date(), onConfirm: setDate });
   };
 
   const handleStart = () => {
@@ -87,7 +96,7 @@ export default function RetroactiveSessionScreen() {
 
         {Platform.OS === 'android' && (
           <Pressable
-            onPress={() => setShowPicker(true)}
+            onPress={openPicker}
             style={styles.dateButton}
             accessibilityRole="button"
             accessibilityLabel={t('session.retroactive_date_label')}
@@ -97,11 +106,12 @@ export default function RetroactiveSessionScreen() {
           </Pressable>
         )}
 
-        {showPicker && (
+        {/* iOS: inline component. Android uses the imperative picker (openPicker). */}
+        {Platform.OS === 'ios' && showPicker && (
           <DateTimePicker
             value={date}
             mode="datetime"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
+            display="inline"
             maximumDate={new Date()}
             onChange={handleDateChange}
             themeVariant="dark"

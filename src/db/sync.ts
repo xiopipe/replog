@@ -69,11 +69,19 @@ const sqlitePlugin = observablePersistSqlite(Storage);
 
 configureSyncedSupabase({
   generateId,
-  // Column names that match 01_schema.sql exactly.
   // changesSince is intentionally omitted (defaults to full-list mode).
   // See SYNC MODE comment above for the full rationale.
-  fieldCreatedAt: 'created_at',
-  fieldUpdatedAt: 'updated_at',
+  //
+  // IMPORTANT — do NOT set fieldCreatedAt / fieldUpdatedAt here.
+  // The Supabase CRUD plugin uses those hints to tell a CREATE from an UPDATE:
+  // if the changed row already has a `created_at` (or `updated_at`) value it is
+  // treated as an existing row and pushed via UPDATE … WHERE id = … which
+  // silently affects 0 rows for a brand-new record (no insert, no error).
+  // Because every client mutation stamps `created_at`/`updated_at` itself, those
+  // hints would misclassify *every* insert as an update and nothing would ever
+  // reach Postgres. With the hints omitted, the plugin classifies create vs
+  // update by whether a previous value exists locally — correct for our
+  // client-generated uuid + client-timestamp pattern.
 });
 
 // ---------------------------------------------------------------------------
@@ -89,6 +97,10 @@ configureSyncedSupabase({
 export const customSynced = configureSynced(syncedSupabase, {
   persist: {
     plugin: sqlitePlugin,
+  },
+  // Surface sync failures (kept quiet in production; useful in logs).
+  onError: (error: unknown) => {
+    console.error('[sync] error:', String(error));
   },
 });
 

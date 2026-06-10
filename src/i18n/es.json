@@ -160,6 +160,8 @@
     "empty": "Aún no tienes rutinas. Crea una o elige una plantilla.",
     "new_routine": "Nueva rutina",
     "weekly_plan": "Plan semanal",
+    "exercise_catalog": "Catálogo de ejercicios",
+    "exercise_catalog_hint": "Explora y crea ejercicios",
     "templates": "Plantillas de inicio",
     "exercises_count": "{{count}} ejercicio",
     "exercises_count_one": "{{count}} ejercicio",

@@ -9,6 +9,7 @@
  */
 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { openAndroidDateTime } from '@/lib/datetime-picker';
 import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -198,8 +199,17 @@ export default function SessionDetailScreen() {
 
   // --- edit started_at via native date picker ---
   const handleOpenDatePicker = () => {
-    setPickedDate(new Date(workout.started_at));
-    setShowDatePicker(true);
+    if (Platform.OS === 'ios') {
+      setPickedDate(new Date(workout.started_at));
+      setShowDatePicker(true);
+      return;
+    }
+    // Android: imperative date→time picker (component mode="datetime" crashes).
+    openAndroidDateTime({
+      value: new Date(workout.started_at),
+      maximumDate: new Date(),
+      onConfirm: (d) => updateSession(db, sessionId, { started_at: d.toISOString() }),
+    });
   };
 
   const handleDateChange = (_event: DateTimePickerEvent, selected?: Date) => {
@@ -296,17 +306,6 @@ export default function SessionDetailScreen() {
               </Pressable>
             )}
           </View>
-
-          {/* Android date picker renders as a modal dialog */}
-          {showDatePicker && Platform.OS === 'android' && (
-            <DateTimePicker
-              value={pickedDate ?? new Date(workout.started_at)}
-              mode="datetime"
-              display="default"
-              maximumDate={new Date()}
-              onChange={handleDateChange}
-            />
-          )}
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t('summary.duration_label')}</Text>

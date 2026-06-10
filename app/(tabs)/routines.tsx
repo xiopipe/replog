@@ -116,6 +116,22 @@ export default function RoutinesScreen() {
             />
           </View>
         }
+        ListFooterComponent={
+          <Pressable
+            onPress={() => router.push('/catalog')}
+            style={({ pressed }) => [styles.catalogRow, pressed && { opacity: 0.75 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('routines.exercise_catalog')}
+          >
+            <View style={styles.routineInfo}>
+              <Text style={styles.routineName} numberOfLines={1}>
+                {t('routines.exercise_catalog')}
+              </Text>
+              <Text style={styles.routineCount}>{t('routines.exercise_catalog_hint')}</Text>
+            </View>
+            <Text style={styles.routineChevron}>{'›'}</Text>
+          </Pressable>
+        }
         renderItem={({ item }) => (
           <RoutineListItem
             routine={item}
@@ -302,6 +318,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     minHeight: TOUCH_TARGET,
+  },
+  catalogRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: TOUCH_TARGET,
+    marginTop: spacing.lg,
   },
   routineInfo: {
     flex: 1,
