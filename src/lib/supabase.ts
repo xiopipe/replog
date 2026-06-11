@@ -21,6 +21,10 @@ export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
     persistSession: true,
     // No URL-based session detection in a native app.
     detectSessionInUrl: false,
+    // Google OAuth uses the code+exchange flow (WebBrowser + exchangeCodeForSession).
+    // PKCE returns a `code` to the deep link; implicit would return tokens in the
+    // URL fragment and the exchange step would never run.
+    flowType: 'pkce',
   },
 });
 
