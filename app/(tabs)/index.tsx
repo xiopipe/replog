@@ -1,16 +1,19 @@
 /**
  * Home tab — today's plan, weekly strip, and quick start button.
  *
- * Phase 3 wiring:
- *  - If there's an in-progress session → show "Reanudar" → navigate to it.
- *  - Today's routine card → "Empezar entreno" → startSessionFromRoutine → navigate.
- *  - "Repetir último" → repeatLastSession → navigate (or show nothing if no history).
- *  - "Registrar entreno pasado" → navigate to retroactive screen.
+ * TKT-0010: Single large primary CTA "Empezar entreno" in the thumb zone (lower
+ *   third, ≥56dp, near-full-width) when no session is in progress and today has
+ *   a planned routine. One tap → session starts → navigates immediately.
+ *
+ * TKT-0013: When a session IS in progress → exactly ONE "Reanudar" button with a
+ *   context chip (routine name + relative start time, day label if different day).
+ *   No duplicate resume controls anywhere on the screen.
  *
  * States:
  *  - No active plan → CTA to choose a template
- *  - Active plan with today's routine → routine card + start/resume
- *  - Active plan, today = rest → rest message
+ *  - Active plan + today's routine + no session → big "Empezar" CTA
+ *  - Active plan + today = rest + no session → rest card + secondary "Empezar libre"
+ *  - In-progress session (any case) → single "Reanudar" + context chip
  */
 import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
@@ -27,7 +30,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
-import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
+import { colors, spacing, typography, TOUCH_TARGET, radius } from '@/lib/theme';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { getActivePlan, getWeekdaySummaries } from '@/features/routines/queries';
@@ -36,7 +39,11 @@ import {
   startSessionFromRoutine,
   repeatLastSession,
 } from '@/features/session/mutations';
-import type { RoutineRow, RoutineExerciseRow } from '@/db';
+import type { RoutineRow, RoutineExerciseRow, WorkoutSessionRow } from '@/db';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 // Today's weekday: JS getDay() is 0=Sun, but our schema is 0=Mon.
 // Convert: Mon=0, Tue=1, …, Sun=6
@@ -44,6 +51,89 @@ function getTodayWeekday(): number {
   const jsDay = new Date().getDay(); // 0=Sun, 1=Mon, …, 6=Sat
   return jsDay === 0 ? 6 : jsDay - 1;
 }
+
+/**
+ * Returns the weekday index (0=Mon…6=Sun) for a given ISO date string.
+ */
+function getWeekdayFromISO(iso: string): number {
+  const jsDay = new Date(iso).getDay();
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+/**
+ * Compute a relative-time string for the elapsed duration since `startedAt`.
+ * Returns keys + interpolation values so callers can use t().
+ *
+ * Buckets:
+ *   < 60 min  → "hace X min"
+ *   < 24 h    → "hace X h"
+ *   ≥ 24 h    → "hace X d"
+ */
+export function computeRelativeElapsed(startedAt: string, now: Date = new Date()): {
+  key: string;
+  count: number;
+} {
+  const diffMs = now.getTime() - new Date(startedAt).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 60) {
+    return { key: 'home.relative_time_minutes', count: Math.max(diffMin, 1) };
+  }
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) {
+    return { key: 'home.relative_time_hours', count: diffH };
+  }
+  return { key: 'home.relative_time_days', count: Math.floor(diffH / 24) };
+}
+
+// ---------------------------------------------------------------------------
+// Context chip for in-progress session
+// ---------------------------------------------------------------------------
+
+interface InProgressChipProps {
+  session: WorkoutSessionRow;
+  routineName: string | null;
+  todayIndex: number;
+}
+
+function InProgressChip({ session, routineName, todayIndex }: InProgressChipProps) {
+  const { t } = useTranslation();
+
+  const sessionDay = getWeekdayFromISO(session.started_at);
+  const isToday = sessionDay === todayIndex;
+
+  const elapsed = computeRelativeElapsed(session.started_at);
+  const elapsedStr = t(elapsed.key, { count: elapsed.count });
+
+  const name = routineName ?? '';
+
+  let chipText: string;
+  if (isToday) {
+    chipText = t('home.in_progress_chip_today', { routineName: name, elapsed: elapsedStr });
+  } else {
+    const dayLabel = sessionDay === (todayIndex === 0 ? 6 : todayIndex - 1)
+      ? t('home.relative_time_yesterday')
+      : t(`weekdays.${sessionDay}`);
+    chipText = t('home.in_progress_chip_other_day', {
+      dayLabel,
+      routineName: name,
+      elapsed: elapsedStr,
+    });
+  }
+
+  return (
+    <Text
+      style={styles.inProgressChip}
+      accessibilityRole="text"
+      numberOfLines={2}
+    >
+      {chipText}
+    </Text>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -78,7 +168,7 @@ export default function HomeScreen() {
     ?? session?.user?.email?.split('@')[0]
     ?? '';
 
-  // Detect active session
+  // Detect active session (at most one; offline-first from local observables)
   const activeSession = useMemo(
     () => getActiveSession(rawSessions ?? {}),
     [rawSessions],
@@ -91,6 +181,13 @@ export default function HomeScreen() {
       (s) => s.status === 'completed' && !s.deleted_at,
     );
   }, [rawSessions]);
+
+  // Resolve the routine name for an in-progress session
+  const activeSessionRoutineName = useMemo(() => {
+    if (!activeSession?.routine_id) return null;
+    const routine = rawRoutines?.[activeSession.routine_id];
+    return routine?.name ?? null;
+  }, [activeSession, rawRoutines]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -105,13 +202,20 @@ export default function HomeScreen() {
     const todayRoutine = todaySummary?.routine;
     if (!todayRoutine) return;
 
-    // Get routine exercises
     const routineExercises: RoutineExerciseRow[] = Object.values(rawRoutineExercises ?? {}).filter(
       (re) => re.routine_id === todayRoutine.id && !re.deleted_at,
     );
 
     const sessionId = startSessionFromRoutine(db, todayRoutine as RoutineRow, routineExercises);
     router.push(`/session/${sessionId}`);
+  };
+
+  const handleStartUnplanned = () => {
+    if (!db || !session?.user?.id || activeSession) return;
+    // Start an unplanned session: repeatLastSession creates a blank session if
+    // there is no history, or repeats the last one. For an unplanned free
+    // workout we navigate to retroactive creation flow instead.
+    router.push('/session/retroactive');
   };
 
   const handleRepeatLast = () => {
@@ -155,16 +259,23 @@ export default function HomeScreen() {
             style={styles.ctaBtn}
           />
 
-          {/* Resume active session (even without a plan) */}
+          {/* Resume active session (even without a plan) — single instance */}
           {activeSession ? (
-            <Pressable
-              onPress={handleResumeSession}
-              style={styles.resumeBanner}
-              accessibilityRole="button"
-              accessibilityLabel={t('home.resume_workout')}
-            >
-              <Text style={styles.resumeBannerText}>{t('home.resume_workout')}</Text>
-            </Pressable>
+            <View style={styles.resumeBlock}>
+              <Pressable
+                onPress={handleResumeSession}
+                style={styles.resumeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.resume_workout')}
+              >
+                <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+              </Pressable>
+              <InProgressChip
+                session={activeSession}
+                routineName={activeSessionRoutineName}
+                todayIndex={todayIndex}
+              />
+            </View>
           ) : null}
 
           <Pressable
@@ -202,19 +313,7 @@ export default function HomeScreen() {
         {/* Weekly strip */}
         <WeeklyStrip weekdays={weekdays} todayIndex={todayIndex} t={t} />
 
-        {/* Resume active session banner (top priority) */}
-        {activeSession ? (
-          <Pressable
-            onPress={handleResumeSession}
-            style={styles.resumeBanner}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.resume_workout')}
-          >
-            <Text style={styles.resumeBannerText}>{t('home.resume_workout')}</Text>
-          </Pressable>
-        ) : null}
-
-        {/* Today's routine card */}
+        {/* Today's routine card — info only, no CTA button inside */}
         {todayHasRoutine && todayRoutine ? (
           <Card style={styles.routineCard}>
             <Text style={styles.routineCardLabel}>{t('home.todays_routine')}</Text>
@@ -222,19 +321,15 @@ export default function HomeScreen() {
             <Text style={styles.routineCardMeta}>
               {t('home.exercises_count', { count: todayExerciseCount })}
             </Text>
-            <Button
-              label={activeSession ? t('home.resume_workout') : t('home.start_workout')}
-              onPress={activeSession ? handleResumeSession : handleStartFromRoutine}
-              style={styles.startBtn}
-            />
           </Card>
         ) : (
           <Card style={styles.restCard}>
             <Text style={styles.restCardText}>{t('home.today_rest')}</Text>
+            <Text style={styles.restCardSub}>{t('home.today_rest_cta')}</Text>
           </Card>
         )}
 
-        {/* Repeat last workout */}
+        {/* Repeat last workout — only when no session is in progress */}
         {hasCompletedSession && !activeSession ? (
           <Pressable
             onPress={handleRepeatLast}
@@ -255,6 +350,55 @@ export default function HomeScreen() {
         >
           <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
         </Pressable>
+
+        {/* ── Primary CTA zone (thumb zone) ─────────────────────────────────
+         *
+         * TKT-0010 + TKT-0013: exactly ONE action in the lower CTA area.
+         *
+         * Case A – session in progress: single "Reanudar" + context chip.
+         * Case B – no session + today has routine: large "Empezar entreno".
+         * Case C – no session + today is rest: secondary "Empezar libre".
+         */}
+        <View style={styles.ctaZone}>
+          {activeSession ? (
+            /* Case A — Resume */
+            <View style={styles.resumeBlock}>
+              <Pressable
+                onPress={handleResumeSession}
+                style={styles.resumeBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('home.resume_workout')}
+              >
+                <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+              </Pressable>
+              <InProgressChip
+                session={activeSession}
+                routineName={activeSessionRoutineName}
+                todayIndex={todayIndex}
+              />
+            </View>
+          ) : todayHasRoutine ? (
+            /* Case B — Start today's routine */
+            <Pressable
+              onPress={handleStartFromRoutine}
+              style={styles.startBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.start_workout')}
+            >
+              <Text style={styles.startBtnText}>{t('home.start_workout')}</Text>
+            </Pressable>
+          ) : (
+            /* Case C — Start unplanned (rest day) */
+            <Pressable
+              onPress={handleStartUnplanned}
+              style={styles.startBtnSecondary}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.start_unplanned')}
+            >
+              <Text style={styles.startBtnSecondaryText}>{t('home.start_unplanned')}</Text>
+            </Pressable>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -345,21 +489,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 
-  // Resume banner
-  resumeBanner: {
-    minHeight: TOUCH_TARGET,
-    borderRadius: 10,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  resumeBannerText: {
-    ...typography.section,
-    color: colors.onAccent,
-    fontSize: 14,
-  },
-
   // Weekly strip
   strip: {
     flexDirection: 'row',
@@ -405,7 +534,7 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
   },
 
-  // Routine card
+  // Routine card (info only — no CTA inside)
   routineCard: {
     gap: spacing.sm,
   },
@@ -424,12 +553,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
-  startBtn: {
-    marginTop: spacing.sm,
-  },
 
   // Rest card
   restCard: {
+    gap: spacing.sm,
     alignItems: 'center',
     paddingVertical: spacing.xl,
   },
@@ -437,11 +564,17 @@ const styles = StyleSheet.create({
     ...typography.section,
     color: colors.textTertiary,
   },
+  restCardSub: {
+    ...typography.body,
+    color: colors.textTertiary,
+    fontSize: 13,
+    textAlign: 'center',
+  },
 
   // Repeat last button
   repeatButton: {
     minHeight: TOUCH_TARGET,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -465,5 +598,74 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textTertiary,
     fontSize: 12,
+  },
+
+  // ── CTA zone (thumb zone, lower section) ──────────────────────────────────
+
+  ctaZone: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+
+  // Primary start button — ≥56dp, near-full-width (TKT-0010)
+  startBtn: {
+    minHeight: 56,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  startBtnText: {
+    ...typography.section,
+    color: colors.onAccent,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+
+  // Secondary CTA for rest days
+  startBtnSecondary: {
+    minHeight: 56,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  startBtnSecondaryText: {
+    ...typography.section,
+    color: colors.textPrimary,
+    fontSize: 17,
+  },
+
+  // Resume block — single CTA + context chip (TKT-0013)
+  resumeBlock: {
+    gap: spacing.sm,
+    alignItems: 'stretch',
+  },
+  resumeBtn: {
+    minHeight: 56,
+    borderRadius: radius.lg,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  resumeBtnText: {
+    ...typography.section,
+    color: colors.onAccent,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+
+  // Context chip beneath the resume button
+  inProgressChip: {
+    ...typography.label,
+    color: colors.textTertiary,
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
   },
 });
