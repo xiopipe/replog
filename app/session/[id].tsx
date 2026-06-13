@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { globalExercises$ } from '@/db';
 import type { ExerciseRow, FailureMetricEnum, SetRow as SetRowData, UnitEnum } from '@/db';
@@ -34,11 +35,12 @@ import {
   getSessionExercises,
   getSetsForSessionExercise,
   getExerciseHistorySets,
+  getLastSetsForExercise,
   detectPR,
   getUserUnitPreference,
   getUserDefaultFailureMetric,
 } from '@/features/session/queries';
-import { toCanonicalKg } from '@/lib/hypertrophy';
+import { toCanonicalKg, estimated1RM, kgToLb } from '@/lib/hypertrophy';
 import {
   addSet,
   duplicateSet,
@@ -55,7 +57,7 @@ import { ActionMenu } from '@/components/ActionMenu';
 import { SessionTimer } from '@/features/session/SessionTimer';
 import { ExercisePager } from '@/features/session/ExercisePager';
 import { SetRow } from '@/features/session/SetRow';
-import { PRBadge } from '@/features/session/PRBadge';
+import { PRBadge, type PRType } from '@/features/session/PRBadge';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +67,9 @@ interface PRInfo {
   exerciseName: string;
   weight: string;
   reps: number;
+  prType: PRType;
+  /** e1RM delta in the user's display unit (may be null for first-ever set). */
+  delta: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +146,21 @@ export default function ActiveSessionScreen() {
     [rawProfiles, userId],
   );
 
+  // ── TKT-0014: Last session sets for the current exercise (prefill + "last time" line) ─────────
+  const lastSessionSets = useMemo(() => {
+    if (!rawSets || !rawSessionExercises || !rawSessions || !currentSE) return [];
+    return getLastSetsForExercise(
+      rawSets,
+      rawSessionExercises,
+      rawSessions,
+      currentSE.exercise_id,
+      { excludeSessionId: sessionId ?? undefined },
+    );
+  }, [rawSets, rawSessionExercises, rawSessions, currentSE, sessionId]);
+
+  // The first working set from the last session is the prefill reference.
+  const lastSessionFirstSet = lastSessionSets[0] ?? null;
+
   // ── Confirm set with PR detection ─────────────────────────────────────────
   const handleConfirmSet = useCallback(
     (setId: string, patch: Partial<SetRowData>, exerciseId: string) => {
@@ -183,10 +203,32 @@ export default function ActiveSessionScreen() {
             updatedSet.weight_value != null
               ? `${updatedSet.weight_value} ${updatedSet.weight_unit ?? userUnit}`
               : `${updatedSet.weight_kg} kg`;
+
+          // TKT-0027: Determine which PR type to display (prefer 1RM).
+          const resolvedPrType: PRType = is1RM ? '1rm' : 'rep';
+
+          // Compute e1RM delta for 1RM PRs
+          let delta: number | null = null;
+          if (is1RM && updatedSet.weight_kg != null && updatedSet.reps) {
+            const currentE1RM = estimated1RM(updatedSet.weight_kg, updatedSet.reps);
+            const workingHistory = history.filter(
+              (s) => !s.is_warmup && !s.deleted_at && s.weight_kg != null && s.reps != null && s.reps >= 1,
+            );
+            if (workingHistory.length > 0) {
+              const prevBest = Math.max(
+                ...workingHistory.map((s) => estimated1RM(s.weight_kg!, s.reps!)),
+              );
+              const deltaKg = currentE1RM - prevBest;
+              delta = userUnit === 'lb' ? kgToLb(deltaKg) : deltaKg;
+            }
+          }
+
           setPrInfo({
             exerciseName: currentExercise?.name ?? '',
             weight: weightDisplay,
             reps: updatedSet.reps,
+            prType: resolvedPrType,
+            delta,
           });
         }
       }
@@ -198,19 +240,25 @@ export default function ActiveSessionScreen() {
   const handleAddSet = useCallback(() => {
     if (!db || !currentSE) return;
 
-    // Prefill from the last set
     const lastSet = currentSets[currentSets.length - 1];
+
+    // TKT-0014: If this exercise has no sets yet in the current session,
+    // prefill from the last completed session instead of an empty set.
+    const workingSetsInSession = currentSets.filter((s) => !s.is_warmup);
+    const prefillSource =
+      workingSetsInSession.length === 0 ? lastSessionFirstSet : lastSet;
+
     addSet(db, currentSE.id, {
       userId,
-      weight_value: lastSet?.weight_value ?? null,
-      weight_unit: lastSet?.weight_unit ?? userUnit,
-      reps: lastSet?.reps ?? null,
-      failure_metric: lastSet?.failure_metric ?? defaultFailureMetric,
-      rir: lastSet?.rir ?? null,
-      rpe: lastSet?.rpe ?? null,
+      weight_value: prefillSource?.weight_value ?? null,
+      weight_unit: prefillSource?.weight_unit ?? userUnit,
+      reps: prefillSource?.reps ?? null,
+      failure_metric: prefillSource?.failure_metric ?? defaultFailureMetric,
+      rir: prefillSource?.rir ?? null,
+      rpe: prefillSource?.rpe ?? null,
       is_warmup: false,
     });
-  }, [db, currentSE, currentSets, userId, userUnit, defaultFailureMetric]);
+  }, [db, currentSE, currentSets, lastSessionFirstSet, userId, userUnit, defaultFailureMetric]);
 
   // ── Add warmup set ────────────────────────────────────────────────────────
   const handleAddWarmupSet = useCallback(() => {
@@ -361,6 +409,32 @@ export default function ActiveSessionScreen() {
     return currentSession.name ? `${dayStr} · ${currentSession.name}` : dayStr;
   }, [currentSession, t]);
 
+  // ── TKT-0022: Swipe gesture + chevrons ───────────────────────────────────
+  const hasPrev = safeIndex > 0;
+  const hasNext = safeIndex < sessionExercises.length - 1;
+
+  const handlePrevExercise = useCallback(() => {
+    if (hasPrev) setExerciseIndex(safeIndex - 1);
+  }, [hasPrev, safeIndex]);
+
+  const handleNextExerciseChevron = useCallback(() => {
+    if (hasNext) setExerciseIndex(safeIndex + 1);
+  }, [hasNext, safeIndex]);
+
+  // Horizontal swipe: left swipe → next exercise, right swipe → previous.
+  // Threshold: 60 dp to distinguish from text input horizontal scrolling.
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-60, 60])
+    .failOffsetY([-20, 20])
+    .runOnJS(true)
+    .onEnd((e) => {
+      if (e.translationX < -60 && hasNext) {
+        setExerciseIndex(safeIndex + 1);
+      } else if (e.translationX > 60 && hasPrev) {
+        setExerciseIndex(safeIndex - 1);
+      }
+    });
+
   // ── Guard states ──────────────────────────────────────────────────────────
   if (!db || rawSessions === null || rawSessionExercises === null) {
     return (
@@ -405,6 +479,9 @@ export default function ActiveSessionScreen() {
           exerciseName={prInfo.exerciseName}
           weight={prInfo.weight}
           reps={prInfo.reps}
+          prType={prInfo.prType}
+          delta={prInfo.delta}
+          userUnit={userUnit}
           onDismiss={handleDismissPR}
         />
       ) : null}
@@ -469,6 +546,43 @@ export default function ActiveSessionScreen() {
               />
             </View>
           ) : null}
+          {/* TKT-0014 / TKT-0018: "Last time" line */}
+          {lastSessionFirstSet ? (
+            <Text
+              style={styles.lastTimeText}
+              accessibilityLabel={
+                lastSessionFirstSet.rir != null
+                  ? t('session.last_time', {
+                      weight: lastSessionFirstSet.weight_value != null
+                        ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
+                        : `${lastSessionFirstSet.weight_kg} kg`,
+                      reps: lastSessionFirstSet.reps ?? '?',
+                      rir: lastSessionFirstSet.rir,
+                    })
+                  : t('session.last_time_no_rir', {
+                      weight: lastSessionFirstSet.weight_value != null
+                        ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
+                        : `${lastSessionFirstSet.weight_kg} kg`,
+                      reps: lastSessionFirstSet.reps ?? '?',
+                    })
+              }
+            >
+              {lastSessionFirstSet.rir != null
+                ? t('session.last_time', {
+                    weight: lastSessionFirstSet.weight_value != null
+                      ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
+                      : `${lastSessionFirstSet.weight_kg} kg`,
+                    reps: lastSessionFirstSet.reps ?? '?',
+                    rir: lastSessionFirstSet.rir,
+                  })
+                : t('session.last_time_no_rir', {
+                    weight: lastSessionFirstSet.weight_value != null
+                      ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
+                      : `${lastSessionFirstSet.weight_kg} kg`,
+                    reps: lastSessionFirstSet.reps ?? '?',
+                  })}
+            </Text>
+          ) : null}
         </View>
       ) : (
         <View style={styles.exerciseHeader}>
@@ -476,24 +590,27 @@ export default function ActiveSessionScreen() {
         </View>
       )}
 
-      {/* ── Column headers ── */}
-      {currentExercise ? (
-        <View style={styles.colHeaders}>
-          <Text style={[styles.colHeader, styles.colHeaderIndex]}>{t('session.set_number')}</Text>
-          <Text style={[styles.colHeader, styles.colHeaderWide]}>
-            {currentExercise.is_bodyweight ? t('session.added_load_label') : t('session.weight_label')}
-          </Text>
-          <Text style={[styles.colHeader, styles.colHeaderWide]}>{t('session.reps_label')}</Text>
-          {defaultFailureMetric !== 'none' ? (
-            <Text style={[styles.colHeader, styles.colHeaderNarrow]}>
-              {defaultFailureMetric === 'rpe' ? t('session.rpe_label') : t('session.rir_label')}
-            </Text>
-          ) : (
-            <View style={styles.colHeaderNarrow} />
-          )}
-          <View style={styles.colHeaderConfirm} />
-        </View>
-      ) : null}
+      {/* ── Column headers + sets list (wrapped in swipe gesture) ── */}
+      {/* TKT-0022: GestureDetector enables left/right swipe between exercises */}
+      <GestureDetector gesture={swipeGesture}>
+        <View style={styles.swipeContainer}>
+          {currentExercise ? (
+            <View style={styles.colHeaders}>
+              <Text style={[styles.colHeader, styles.colHeaderIndex]}>{t('session.set_number')}</Text>
+              <Text style={[styles.colHeader, styles.colHeaderWide]}>
+                {currentExercise.is_bodyweight ? t('session.added_load_label') : t('session.weight_label')}
+              </Text>
+              <Text style={[styles.colHeader, styles.colHeaderWide]}>{t('session.reps_label')}</Text>
+              {defaultFailureMetric !== 'none' ? (
+                <Text style={[styles.colHeader, styles.colHeaderNarrow]}>
+                  {defaultFailureMetric === 'rpe' ? t('session.rpe_label') : t('session.rir_label')}
+                </Text>
+              ) : (
+                <View style={styles.colHeaderNarrow} />
+              )}
+              <View style={styles.colHeaderConfirm} />
+            </View>
+          ) : null}
 
       {/* ── Sets list ── */}
       <ScrollView
@@ -516,6 +633,9 @@ export default function ActiveSessionScreen() {
             onDelete={() => deleteSet(db, set.id)}
             onSelectionToggle={isSelectingDropset ? () => toggleSetSelection(set.id) : undefined}
             onToggleWarmup={() => updateSet(db, set.id, { is_warmup: !set.is_warmup })}
+            onToggleReachedFailure={() =>
+              updateSet(db, set.id, { reached_failure: !set.reached_failure })
+            }
           />
         ))}
 
@@ -564,13 +684,39 @@ export default function ActiveSessionScreen() {
           </View>
         ) : null}
       </ScrollView>
+        </View>
+      </GestureDetector>
 
-      {/* ── Position dots ── */}
-      <ExercisePager
-        total={sessionExercises.length}
-        currentIndex={safeIndex}
-        onSelect={(i) => setExerciseIndex(i)}
-      />
+      {/* ── Position dots + chevrons (TKT-0022) ── */}
+      <View style={styles.pagerRow}>
+        <Pressable
+          onPress={handlePrevExercise}
+          style={[styles.chevronButton, !hasPrev && styles.chevronButtonHidden]}
+          accessibilityRole="button"
+          accessibilityLabel={t('session.prev_exercise')}
+          accessibilityState={{ disabled: !hasPrev }}
+          hitSlop={8}
+          disabled={!hasPrev}
+        >
+          <Ionicons name="chevron-back" size={20} color={hasPrev ? colors.textSecondary : 'transparent'} />
+        </Pressable>
+        <ExercisePager
+          total={sessionExercises.length}
+          currentIndex={safeIndex}
+          onSelect={(i) => setExerciseIndex(i)}
+        />
+        <Pressable
+          onPress={handleNextExerciseChevron}
+          style={[styles.chevronButton, !hasNext && styles.chevronButtonHidden]}
+          accessibilityRole="button"
+          accessibilityLabel={t('session.next_exercise_chevron')}
+          accessibilityState={{ disabled: !hasNext }}
+          hitSlop={8}
+          disabled={!hasNext}
+        >
+          <Ionicons name="chevron-forward" size={20} color={hasNext ? colors.textSecondary : 'transparent'} />
+        </Pressable>
+      </View>
 
       {/* ── Bottom actions ── */}
       {!isFinishedSession ? (
@@ -680,6 +826,7 @@ const styles = StyleSheet.create({
   exerciseTimerChipText: { ...typography.label, color: colors.accent, fontSize: 12 },
   exerciseTimerInline: { ...typography.label, color: colors.accent, fontSize: 12 },
   noExercisesText: { ...typography.body, color: colors.textTertiary },
+  lastTimeText: { ...typography.label, color: colors.textTertiary, fontStyle: 'italic', fontSize: 11 },
 
   // Column headers
   colHeaders: {
@@ -742,7 +889,27 @@ const styles = StyleSheet.create({
   },
   dropsetConfirmText: { ...typography.label, color: colors.onAccent, fontWeight: '600' },
 
-  // Position dots
+  // TKT-0022: swipe gesture wrapper
+  swipeContainer: { flex: 1 },
+
+  // TKT-0022: pager row with chevrons
+  pagerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+  },
+  chevronButton: {
+    minWidth: TOUCH_TARGET,
+    minHeight: TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevronButtonHidden: {
+    opacity: 0,
+  },
+
+  // Position dots (legacy — keep for reference)
   pager: { paddingVertical: spacing.sm },
 
   // Bottom actions

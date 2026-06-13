@@ -36,6 +36,7 @@ export interface SetRowProps {
   onDelete?: () => void;
   onSelectionToggle?: () => void;
   onToggleWarmup?: () => void;
+  onToggleReachedFailure?: () => void;
 }
 
 function NumericField({
@@ -125,6 +126,7 @@ export function SetRow({
   onDelete,
   onSelectionToggle,
   onToggleWarmup,
+  onToggleReachedFailure,
 }: SetRowProps) {
   const { t } = useTranslation();
   const isWarmup = set.is_warmup;
@@ -171,6 +173,8 @@ export function SetRow({
   const showFailure = effectiveMetric !== 'none';
 
   const dropGroup = set.drop_group;
+
+  const reachedFailure = set.reached_failure;
 
   return (
     <View style={[styles.row, isWarmup && styles.rowWarmup, isSelected && styles.rowSelected]}>
@@ -271,6 +275,27 @@ export function SetRow({
         />
       </Pressable>
 
+      {/* Reached-failure chip — TKT-0021 */}
+      {onToggleReachedFailure ? (
+        <Pressable
+          onPress={onToggleReachedFailure}
+          style={[styles.failureChip, reachedFailure && styles.failureChipActive]}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: reachedFailure }}
+          accessibilityLabel={t('session.reached_failure_toggle')}
+          hitSlop={4}
+        >
+          <Ionicons
+            name={reachedFailure ? 'flame' : 'flame-outline'}
+            size={12}
+            color={reachedFailure ? colors.error : colors.textTertiary}
+          />
+          <Text style={[styles.failureChipText, reachedFailure && styles.failureChipTextActive]}>
+            {t('session.reached_failure_label')}
+          </Text>
+        </Pressable>
+      ) : null}
+
     </View>
   );
 }
@@ -331,5 +356,30 @@ const styles = StyleSheet.create({
     minHeight: TOUCH_TARGET,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  failureChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    minHeight: TOUCH_TARGET,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  failureChipActive: {
+    borderColor: colors.error,
+    backgroundColor: colors.surfaceAlt,
+  },
+  failureChipText: {
+    ...typography.label,
+    fontSize: 10,
+    color: colors.textTertiary,
+  },
+  failureChipTextActive: {
+    color: colors.error,
+    fontWeight: '600',
   },
 });

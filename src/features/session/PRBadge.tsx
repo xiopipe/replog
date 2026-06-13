@@ -4,6 +4,9 @@
  * Renders a toast-style badge with the exercise name, weight, and reps.
  * Auto-dismisses after 3 seconds. Uses a simple opacity fade-in/fade-out
  * via Animated.
+ *
+ * TKT-0027: now accepts prType ('1rm' | 'rep' | null) and delta (e1RM
+ * improvement in the user's unit) so the label is specific.
  */
 
 import { useEffect, useState } from 'react';
@@ -11,15 +14,31 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { colors, radius, spacing, typography } from '@/lib/theme';
+import type { UnitEnum } from '@/db';
+
+export type PRType = '1rm' | 'rep';
 
 export interface PRBadgeProps {
   exerciseName: string;
   weight: string;
   reps: number;
   onDismiss: () => void;
+  /** Which PR type fired. 'both' and '1rm' show the 1RM label (spec: prefer 1RM). */
+  prType?: PRType | null;
+  /** Improvement delta in the user's display unit (e1RM_new − e1RM_prev). */
+  delta?: number | null;
+  userUnit?: UnitEnum;
 }
 
-export function PRBadge({ exerciseName, weight, reps, onDismiss }: PRBadgeProps) {
+export function PRBadge({
+  exerciseName,
+  weight,
+  reps,
+  onDismiss,
+  prType,
+  delta,
+  userUnit = 'kg',
+}: PRBadgeProps) {
   const { t } = useTranslation();
   // Animated.Value is created once and stored in state so it's stable across renders
   // and not accessed as a ref property during render.
@@ -45,19 +64,48 @@ export function PRBadge({ exerciseName, weight, reps, onDismiss }: PRBadgeProps)
     return () => anim.stop();
   }, [opacity, onDismiss]);
 
+  // Determine the title label based on PR type.
+  // If both fired, prefer 1RM (spec TKT-0027).
+  const titleKey =
+    prType === '1rm'
+      ? 'session.pr_badge_title_1rm'
+      : prType === 'rep'
+        ? 'session.pr_badge_title_rep'
+        : 'session.pr_badge_title';
+
+  const titleLabel = t(titleKey);
+
+  // Delta sub-label shown only for 1RM PR when delta is meaningful
+  const showDelta = prType === '1rm' && delta != null && delta > 0;
+  const deltaLabel = showDelta
+    ? t('session.pr_badge_delta', {
+        delta: delta!.toFixed(1),
+        unit: userUnit,
+      })
+    : null;
+
+  const a11yLabel =
+    `${titleLabel} ${exerciseName} ${weight} × ${reps}` +
+    (deltaLabel ? ` ${deltaLabel}` : '');
+
   return (
     <Animated.View
       style={[styles.container, { opacity }]}
       accessible
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
-      accessibilityLabel={`${t('session.pr_badge_title')} ${exerciseName} ${weight} × ${reps}`}
+      accessibilityLabel={a11yLabel}
     >
       <View style={styles.iconWrapper}>
         <Text style={styles.icon}>🏆</Text>
       </View>
       <View style={styles.textWrapper}>
-        <Text style={styles.title}>{t('session.pr_badge_title')}</Text>
+        <Text style={styles.title}>{titleLabel}</Text>
+        {deltaLabel ? (
+          <Text style={styles.delta} numberOfLines={1}>
+            {deltaLabel}
+          </Text>
+        ) : null}
         <Text style={styles.desc} numberOfLines={1}>
           {t('session.pr_badge_desc', { exercise: exerciseName, weight, reps })}
         </Text>
@@ -103,6 +151,12 @@ const styles = StyleSheet.create({
     ...typography.label,
     fontWeight: '600',
     color: colors.warning,
+  },
+  delta: {
+    ...typography.label,
+    fontWeight: '500',
+    color: colors.warning,
+    opacity: 0.8,
   },
   desc: {
     ...typography.label,
