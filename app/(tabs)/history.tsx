@@ -4,7 +4,7 @@
  * Each session row shows: weekday + date, duration (mm:ss), sets per muscle
  * (fractional volume), and a PR badge if any set in that session was a PR.
  *
- * Wireframe: docs/UI-Mockups/history.svg
+ * Wireframe: docs/specs/UI-Mockups/history.svg
  */
 
 import { useRows } from '@/db';

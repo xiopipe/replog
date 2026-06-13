@@ -27,7 +27,7 @@
  * sync cycle is fast enough.  If incremental sync becomes necessary later,
  * the correct path is to add a separate boolean `is_deleted` column alongside
  * `deleted_at` and wire that as `fieldDeleted`, OR move to the PowerSync /
- * custom list approach described in docs/Architecture.md.
+ * custom list approach described in docs/specs/Architecture.md.
  *
  * SOFT DELETE
  * -----------
@@ -89,6 +89,41 @@ configureSyncedSupabase({
 // ---------------------------------------------------------------------------
 
 /**
+ * Cross-table FK ordering & eventual consistency
+ * ----------------------------------------------
+ * Every entity is its own `syncedSupabase` collection, and each collection
+ * pushes its dirty rows to Supabase on an independent debounce timer. When a
+ * cascade is written locally in one tick — e.g. `createPlanFromTemplate` writes
+ * plan → routine → routine_exercises → plan_day, or a session writes
+ * workout_session → session_exercises → sets — the per-collection network
+ * pushes RACE each other. A child row (plan_days.routine_id, or
+ * session_exercises.session_id) can reach Postgres before its parent INSERT
+ * commits, and Postgres rejects it with:
+ *
+ *   insert or update on table "plan_days" violates foreign key constraint
+ *   "plan_days_routine_id_fkey"
+ *
+ * Legend-State does not expose cross-collection sync ordering, so the correct
+ * fix for this stack is eventual consistency: keep retrying the rejected child
+ * push with backoff until the parent has landed, then it succeeds. The retry
+ * config below makes that automatic and bounded (exponential backoff capped at
+ * 30s, retried indefinitely so an offline device eventually reconciles on
+ * reconnect). `persist.retrySync: true` on each collection persists the pending
+ * queue across app restarts so the reconciliation survives a kill mid-cascade.
+ */
+const RETRY = { infinite: true, backoff: 'exponential', maxDelay: 30_000 } as const;
+
+/**
+ * True for sync failures that are EXPECTED during a write cascade and will heal
+ * on the next backoff retry once the parent row syncs — they must not be logged
+ * at `error` level (that triggers the dev LogBox red overlay and looks like a
+ * crash). A foreign-key violation is the canonical case.
+ */
+function isTransientSyncError(message: string): boolean {
+  return /violates foreign key constraint/i.test(message);
+}
+
+/**
  * `customSynced` is `syncedSupabase` pre-bound with the global persist plugin.
  * Entity modules call it directly:
  *
@@ -98,9 +133,20 @@ export const customSynced = configureSynced(syncedSupabase, {
   persist: {
     plugin: sqlitePlugin,
   },
-  // Surface sync failures (kept quiet in production; useful in logs).
+  // Retry failed pushes with exponential backoff so cross-table FK ordering
+  // violations self-heal once the parent row lands (see comment above).
+  retry: RETRY,
+  // Surface sync failures. Transient FK-ordering violations are expected during
+  // write cascades and will be retried — log them at `warn` so they stay
+  // visible in logs without raising the dev LogBox error overlay. Everything
+  // else is a genuine failure (RLS, schema, auth) and stays at `error`.
   onError: (error: unknown) => {
-    console.error('[sync] error:', String(error));
+    const message = String(error);
+    if (isTransientSyncError(message)) {
+      console.warn('[sync] retrying after FK-ordering violation:', message);
+    } else {
+      console.error('[sync] error:', message);
+    }
   },
 });
 

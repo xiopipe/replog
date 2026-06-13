@@ -29,6 +29,7 @@ Implications of choosing Legend-State:
 - **Soft delete**: delete = set `deleted_at`, never physical delete (syncable and reversible).
 - **Conflict resolution**: **last-write-wins** by `updated_at`. Enough for the MVP: it's almost always the same user on one or two devices; real conflicts are rare.
 - **Change queue**: offline operations are queued and resent on reconnect (handled by the chosen sync engine).
+- **Cross-table FK ordering → eventual consistency, not ordered pushes**: each entity is its **own** `syncedSupabase` collection that pushes on an independent debounce timer, so when a cascade is written locally in one tick (e.g. plan → routine → routine_exercises → plan_day, or workout_session → session_exercises → sets) the per-collection network pushes **race**. A child row can reach Postgres before its parent INSERT commits and be rejected by the foreign key (`..._fkey`). Legend-State does not expose cross-collection ordering, so the fix is **retry with backoff** (`retry: { infinite: true, backoff: 'exponential', maxDelay: 30000 }` on the global synced config in `src/db/sync.ts`) plus `persist.retrySync: true` per collection: the rejected child push keeps retrying until the parent lands, then succeeds. Foreign-key violations during a cascade are **expected and self-healing** — `onError` logs them at `warn`, reserving `error` for genuine failures (RLS, schema, auth). See `docs/process/Known-Issues.md` (KI-001).
 
 ---
 

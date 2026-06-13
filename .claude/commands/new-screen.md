@@ -8,7 +8,7 @@ Create the **"$1"** screen by delegating to the **ux-implementer** subagent.
 
 Requirements:
 - Route in `/app` with Expo Router.
-- If a matching wireframe exists in @docs/UI-Mockups/, follow it faithfully.
+- If a matching wireframe exists in @docs/specs/UI-Mockups/, follow it faithfully.
 - Design-system tokens (skill `rn-screen-patterns`); no magic values. Dark mode.
 - All text via `t()` in `src/i18n/es.json` (skill `i18n`); zero hardcoding.
 - Accessibility: labels, targets ≥ 44px, AA contrast.

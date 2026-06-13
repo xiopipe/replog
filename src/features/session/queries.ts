@@ -20,6 +20,7 @@ import {
   estimated1RM,
   effectiveSetCount,
   fractionalVolumeByMuscle,
+  tonnage,
   type MusclesBySessionExerciseId,
 } from '@/lib/hypertrophy';
 
@@ -39,9 +40,15 @@ export interface SessionSummary {
   durationMs: number | null;
   /** Count of working (non-warmup) sets. */
   effectiveSets: number;
+  /** Total tonnage in kg: Σ (weight_kg × reps) over working sets. */
+  tonnageKg: number;
   /** Fractional volume per muscle group over working sets. */
   volumeByMuscle: Partial<Record<MuscleEnum, number>>;
-  /** IDs of sets that triggered a PR in this session. */
+  /**
+   * IDs of sets that triggered a PR in this session — at most ONE per exercise
+   * (the single best PR for that exercise), so the summary never lists the same
+   * exercise twice.
+   */
   prSetIds: string[];
 }
 
@@ -280,9 +287,12 @@ export function summarizeSession(
 
   const workingSets = sessionSets.filter((s) => !s.is_warmup);
 
-  const prSetIds: string[] = [];
-
-  // Check PRs for each working set against history from OTHER sessions
+  // Check PRs for each working set against history from OTHER sessions, then
+  // keep at most ONE PR per exercise — the set with the highest estimated 1RM.
+  // Without this dedup, several sets in the same session each beat the
+  // (current-session-excluded) history and the summary lists the same exercise
+  // multiple times (e.g. two identical "7.5 × 5" entries). See TKT-0012.
+  const bestPrByExercise = new Map<string, { setId: string; e1rm: number }>();
   for (const set of workingSets) {
     if (set.reps == null || set.reps < 1 || set.weight_kg == null) continue;
 
@@ -295,14 +305,20 @@ export function summarizeSession(
     });
 
     const { is1RM, isRepPR } = detectPR(set, history);
-    if (is1RM || isRepPR) {
-      prSetIds.push(set.id);
+    if (!is1RM && !isRepPR) continue;
+
+    const e1rm = estimated1RM(set.weight_kg, set.reps);
+    const current = bestPrByExercise.get(se.exercise_id);
+    if (!current || e1rm > current.e1rm) {
+      bestPrByExercise.set(se.exercise_id, { setId: set.id, e1rm });
     }
   }
+  const prSetIds = Array.from(bestPrByExercise.values()).map((v) => v.setId);
 
   return {
     durationMs,
     effectiveSets: effectiveSetCount(sessionSets),
+    tonnageKg: tonnage(sessionSets),
     volumeByMuscle: fractionalVolumeByMuscle(sessionSets, musclesBySeId),
     prSetIds,
   };

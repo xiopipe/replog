@@ -13,7 +13,6 @@
  * Mirrors session-summary.svg wireframe exactly.
  */
 
-import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,16 +26,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { globalExercises$, globalExerciseMuscles$ } from '@/db';
+import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
 import type { ExerciseRow, MuscleEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 import { formatMmSs } from '@/features/session/SessionTimer';
 import {
   getSessionExercises,
+  getUserUnitPreference,
   summarizeSession,
 } from '@/features/session/queries';
-import type { MusclesBySessionExerciseId } from '@/lib/hypertrophy';
+import { kgToLb, type MusclesBySessionExerciseId } from '@/lib/hypertrophy';
 
 // Ordered muscle display list (8 groups from Exercise-Catalog.md)
 const MUSCLE_ORDER: MuscleEnum[] = [
@@ -55,16 +55,23 @@ export default function SessionSummaryScreen() {
   const router = useRouter();
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
 
-  const { db } = useAuth();
+  const { db, session: authSession } = useAuth();
+  const userId = authSession?.user?.id ?? '';
 
   // ── Observable reads ──────────────────────────────────────────────────────
   const rawSessions = useRows(db?.workoutSessions$);
   const rawSessionExercises = useRows(db?.sessionExercises$);
   const rawSets = useRows(db?.sets$);
+  const rawProfiles = useRows(db?.profiles$);
   const globalExercises = useRows(globalExercises$);
   const globalMuscles = useRows(globalExerciseMuscles$);
   const rawUserExercises = useRows(db?.userExercises$);
   const rawUserMuscles = useRows(db?.userExerciseMuscles$);
+
+  const userUnit = useMemo(
+    () => getUserUnitPreference(rawProfiles ?? {}, userId),
+    [rawProfiles, userId],
+  );
 
   // ── Merge catalogs ────────────────────────────────────────────────────────
   const allExercises: Record<string, ExerciseRow> = useMemo(
@@ -135,9 +142,9 @@ export default function SessionSummaryScreen() {
       const exercise = se ? allExercises[se.exercise_id] : null;
       const weightDisplay =
         set.weight_value != null
-          ? `${set.weight_value} ${set.weight_unit ?? 'kg'}`
+          ? `${set.weight_value} ${set.weight_unit ?? userUnit}`
           : set.weight_kg != null
-          ? `${set.weight_kg} kg`
+          ? `${userUnit === 'lb' ? Math.round(kgToLb(set.weight_kg)) : set.weight_kg} ${userUnit}`
           : '—';
       return {
         id: set.id,
@@ -146,7 +153,14 @@ export default function SessionSummaryScreen() {
         reps: set.reps ?? 0,
       };
     });
-  }, [prSets, rawSessionExercises, allExercises]);
+  }, [prSets, rawSessionExercises, allExercises, userUnit]);
+
+  // ── Tonnage (unit-aware) ──────────────────────────────────────────────────
+  const tonnageDisplay = useMemo(() => {
+    const kg = summary?.tonnageKg ?? 0;
+    const value = userUnit === 'lb' ? Math.round(kgToLb(kg)) : Math.round(kg);
+    return t('summary.tonnage_value', { value, unit: userUnit });
+  }, [summary, userUnit, t]);
 
   // ── Header label ──────────────────────────────────────────────────────────
   const headerLabel = useMemo(() => {
@@ -222,6 +236,12 @@ export default function SessionSummaryScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>{t('summary.effective_sets_label')}</Text>
             <Text style={styles.statValue}>{summary?.effectiveSets ?? 0}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>{t('summary.tonnage_label')}</Text>
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+              {tonnageDisplay}
+            </Text>
           </View>
         </View>
 
