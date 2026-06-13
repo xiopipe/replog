@@ -18,6 +18,7 @@ Consult the specs before implementing; if something is undefined, ask instead of
 
 - **Pick up work** from `docs/tickets/INDEX.md`; follow each ticket's EARS acceptance criteria. Keep `docs/process/STATE.md` current as tickets complete.
 - Record significant decisions as ADRs in `docs/process/decisions/`.
+- **Documentation-first (MANDATORY):** before coding any new feature/decision, dispatch the **`vault-scribe`** agent to document it (ADR + spec + tickets with EARS), then build from the ticket. See `docs/constitution.md` §7.1.
 - `docs/process/Build-Plan.md` ordered the original MVP phases (0–5, now built); STATE.md reflects reality.
 - Obey the constitution: offline-first, i18n (Spanish app text, no hardcoded strings), data rules, and **English for everything written to the repo**.
 - Apply SQL exactly as in `docs/specs/sql/`; do not redo the schema without updating `docs/specs/sql/` and `docs/specs/Architecture.md`.
@@ -26,7 +27,7 @@ Consult the specs before implementing; if something is undefined, ask instead of
 
 Project-specific agents, commands, and skills (see `.claude/README.md`).
 - Commands: `/start-phase`, `/acceptance`, `/check-spec`, `/review`, `/new-screen`, `/add-i18n`, `/db-change`.
-- Agents: `spec-guardian`, `code-reviewer`, `offline-data-engineer`, `ux-implementer`.
+- Agents: `vault-scribe` (documents new scope into the vault), `spec-guardian`, `code-reviewer`, `offline-data-engineer`, `ux-implementer`.
 - Skills: `hypertrophy-formulas`, `legend-state-sync`, `i18n`, `rn-screen-patterns`.
 - MCP `context7` (in `.mcp.json`) for up-to-date library docs.
 

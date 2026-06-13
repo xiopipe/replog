@@ -4,6 +4,7 @@ Configuration so Claude Code builds RepLog following the specs in `/docs` (sourc
 
 ## Agents (`.claude/agents/`)
 Specialized subagents; Claude invokes them or you call them by name.
+- **vault-scribe** — documents new features/decisions into the vault (ADR + spec + tickets with EARS). Dispatched **before** coding new scope; writes docs only. See `docs/constitution.md` §7.1.
 - **spec-guardian** — verifies code against the specs (read-only).
 - **code-reviewer** — reviews diffs (quality, security, offline-first, i18n).
 - **offline-data-engineer** — Legend-State observables, Supabase sync, RLS, migrations.

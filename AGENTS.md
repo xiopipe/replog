@@ -18,6 +18,10 @@ Offline-first mobile app (Expo + React Native, Android first) to log strength tr
 - Follow the ticket's **EARS acceptance criteria** exactly. Update its `status` as you progress and reflect completion in `docs/process/STATE.md`.
 - Record any significant decision as an ADR in `docs/process/decisions/` (MADR format).
 
+## Documentation-first (MANDATORY)
+
+Before implementing any new feature, behavior change, or architectural decision, it MUST be documented in the vault first (ADR if a decision + spec update if behavior/data changes + ticket(s) with EARS criteria). **Proactively dispatch the `vault-scribe` agent** whenever the conversation produces new scope or a decision that is not yet in the vault — then implement from the resulting ticket. Code without a backing ticket is out of process. See `docs/constitution.md` §7.1.
+
 ## Setup / build / test
 
 ```bash

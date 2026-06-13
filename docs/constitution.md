@@ -52,3 +52,9 @@ AI/programming logic, nutrition, body metrics, social feed, iOS, multiple active
 - If something is undefined, **ask — do not invent**.
 - Record significant decisions as ADRs in `process/decisions/`.
 - Keep `process/STATE.md` current as work completes.
+
+### 7.1 Documentation-first (MANDATORY)
+
+Before implementing any **new feature, behavior change, or architectural decision**, it must first be captured in the vault following the three-layer pattern: an **ADR** if a decision was made, a **spec** update if behavior/data changes, and **ticket(s)** with EARS acceptance criteria. Code that has no backing ticket is out of process.
+
+The **`vault-scribe`** agent exists to produce this documentation. Whenever the work produces new scope or a decision not yet in the vault, **dispatch `vault-scribe` to document it before writing code**. This is not optional — it is how the project stays buildable by anyone, human or AI.
