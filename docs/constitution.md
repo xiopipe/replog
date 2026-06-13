@@ -47,11 +47,11 @@ AI/programming logic, nutrition, body metrics, social feed, iOS, multiple active
 
 ## 7. Working agreement
 
-- The **canonical source of truth is the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. On conflict between code and vault, the vault wins (or the vault is updated deliberately). The repo `docs/` folder is a **secondary English mirror** of the vault — useful for in-repo cross-references, but the vault is authoritative.
+- The **single source of truth is the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. Product documentation lives **only** there — it is not mirrored in this repo. On conflict between code and vault, the vault wins (or the vault is updated deliberately). The repo keeps only the agent contract (`docs/constitution.md`, `AGENTS.md`, `CLAUDE.md`).
 - Pick up work from the vault's `Tickets/INDEX.md`; follow each ticket's EARS acceptance criteria.
 - If something is undefined, **ask — do not invent**.
-- Record significant decisions as ADRs in the vault's `Decisions/` folder (MADR format). Mirror them to `docs/process/decisions/` if needed for in-repo tooling.
-- Keep `docs/process/STATE.md` current as work completes.
+- Record significant decisions as ADRs in the vault's `Decisions/` folder (MADR format).
+- Keep the vault's `STATE.md` current as work completes.
 
 ### 7.1 Documentation-first (MANDATORY)
 

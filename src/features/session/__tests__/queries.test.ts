@@ -3,7 +3,7 @@
  *
  * Domain rules source of truth:
  *   - docs/.claude/skills/hypertrophy-formulas/SKILL.md
- *   - docs/specs/Tracking.md
+ *   - the vault's `02 - Features/Tracking.md`
  *   - Architecture.md
  *
  * All fixtures use ISO timestamps and plain-string UUIDs.

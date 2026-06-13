@@ -19,7 +19,7 @@ Slash commands for repeated flows:
 - `/review` — review the current diff (via code-reviewer).
 - `/new-screen <name>` — scaffold a screen faithful to the wireframe.
 - `/add-i18n [area]` — externalize hardcoded text to `es.json`.
-- `/db-change <description>` — schema change syncing docs/specs/sql.
+- `/db-change <description>` — schema change syncing the vault's `07 - SQL/`.
 
 ## Skills (`.claude/skills/`)
 Project knowledge Claude loads when relevant:
