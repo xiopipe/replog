@@ -27,7 +27,7 @@
  * sync cycle is fast enough.  If incremental sync becomes necessary later,
  * the correct path is to add a separate boolean `is_deleted` column alongside
  * `deleted_at` and wire that as `fieldDeleted`, OR move to the PowerSync /
- * custom list approach described in docs/specs/Architecture.md.
+ * custom list approach described in the vault's `03 - Arquitectura/Arquitectura.md`.
  *
  * SOFT DELETE
  * -----------

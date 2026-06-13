@@ -2,27 +2,27 @@
 
 Claude-specific entry point. **Start by reading [`AGENTS.md`](AGENTS.md) and [`docs/constitution.md`](docs/constitution.md)** — they hold the cross-agent operating manual and the immutable principles (including the **mandatory English-only language policy** for all repo artifacts). This file only adds Claude-toolkit specifics; it does not duplicate them.
 
-## Source of truth
+## Source of truth — the Obsidian vault
 
-> **The canonical source of truth is the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. The repo `docs/` folder is a **secondary English mirror** — kept for in-repo cross-references and tooling, but the vault wins on any conflict.
+> **All product documentation lives ONLY in the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. It is **not** mirrored in this repo. The repo keeps only the agent contract: `docs/constitution.md`, `AGENTS.md`, `CLAUDE.md`. The vault is outside git (present on the dev's machine; absent on a fresh clone / CI).
 
 The vault is organized in three layers:
 
-- **Specs (the *what*, stable):** numbered vault notes — `01 - Vision/`, `02 - Features/` (Tracking, Catálogo de ejercicios, Programación con IA, Feed), `03 - Arquitectura/`, `04 - Diseno & UX/`, `07 - SQL/`, `08 - Build Plan/`. Mirrored in `docs/specs/`.
-- **Decisions (ADRs):** vault `Decisions/NNNN-title.md` (MADR format). Mirrored in `docs/process/decisions/`.
-- **Tickets (actionable work):** vault `Tickets/INDEX.md` (board) + `Tickets/TKT-NNNN-*.md`. Mirrored in `docs/tickets/`.
-- **Process (the *when/how*, living):** vault `STATE.md` + `05 - Roadmap/` + `06 - Backlog/` + `09 - Known Issues/`. Mirrored in `docs/process/`.
+- **Specs (the *what*, stable):** numbered notes — `01 - Vision/`, `02 - Features/` (Tracking, Catálogo de ejercicios, Programación con IA, Feed), `03 - Arquitectura/`, `04 - Diseno & UX/`, `07 - SQL/`, `08 - Build Plan/`.
+- **Decisions (ADRs):** `Decisions/NNNN-title.md` (MADR format).
+- **Tickets (actionable work):** `Tickets/INDEX.md` (board) + `Tickets/TKT-NNNN-*.md`.
+- **Process (the *when/how*, living):** `STATE.md` + `05 - Roadmap/` + `06 - Backlog/` + `09 - Known Issues/`.
 
-Consult the vault specs before implementing; if something is undefined, ask instead of inventing.
+Consult the vault before implementing; if something is undefined, ask instead of inventing.
 
 ## How to work
 
-- **Pick up work** from `docs/tickets/INDEX.md`; follow each ticket's EARS acceptance criteria. Keep `docs/process/STATE.md` current as tickets complete.
-- Record significant decisions as ADRs in `docs/process/decisions/`.
-- **Documentation-first (MANDATORY):** before coding any new feature/decision, dispatch the **`vault-scribe`** agent to document it (ADR + spec + tickets with EARS), then build from the ticket. See `docs/constitution.md` §7.1.
-- `docs/process/Build-Plan.md` ordered the original MVP phases (0–5, now built); STATE.md reflects reality.
-- Obey the constitution: offline-first, i18n (Spanish app text, no hardcoded strings), data rules, and **English for everything written to the repo**.
-- Apply SQL exactly as in `docs/specs/sql/`; do not redo the schema without updating `docs/specs/sql/` and `docs/specs/Architecture.md`.
+- **Pick up work** from the vault's `Tickets/INDEX.md`; follow each ticket's EARS acceptance criteria. Keep the vault's `STATE.md` current as tickets complete.
+- Record significant decisions as ADRs in the vault's `Decisions/`.
+- **Documentation-first (MANDATORY):** before coding any new feature/decision, dispatch the **`vault-scribe`** agent to document it in the vault (ADR + spec + tickets with EARS), then build from the ticket. See `docs/constitution.md` §7.1.
+- The vault's `08 - Build Plan/` ordered the original MVP phases (0–5, now built); `STATE.md` reflects reality.
+- Obey the constitution: offline-first, i18n (Spanish app text, no hardcoded strings), data rules, and **English for everything written**.
+- Apply SQL via `supabase/migrations/`; canonical SQL spec is the vault's `07 - SQL/`. Don't redo the schema without updating both + `03 - Arquitectura/Arquitectura.md`.
 
 ## Toolkit (`.claude/`)
 

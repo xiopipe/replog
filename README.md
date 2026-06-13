@@ -4,7 +4,7 @@ Mobile app to log strength training with a **hypertrophy** goal: plan routines a
 
 ## Getting started (build)
 1. Read **`CLAUDE.md`** (root): context, stack, conventions, and domain rules.
-2. Follow **`docs/process/Build-Plan.md`** phase by phase (each step has an acceptance criterion).
+2. Follow **the vault's `08 - Build Plan/Build Plan.md`** phase by phase (each step has an acceptance criterion).
 3. The specs in **`docs/`** are the **source of truth**. When in doubt, consult them before implementing.
 
 ## Documentation (`docs/`)
@@ -25,7 +25,7 @@ Mobile app to log strength training with a **hypertrophy** goal: plan routines a
 ## Supabase
 Schema and seed live as migrations in `supabase/migrations/` and are applied to the
 production database via the **Supabase GitHub integration** (deploy on merge to `main`).
-Do not run the SQL by hand. The canonical specs remain in `docs/specs/sql/`.
+Do not run the SQL by hand. The canonical specs remain in `supabase/migrations/` (canonical spec in the vault's `07 - SQL/`).
 
 ## MVP scope
 Plan routines + weekly plan, log workouts offline (weight/reps/RIR-RPE), history, PRs. **Out of scope:** AI/programming, nutrition, social, iOS, multiple plans.
