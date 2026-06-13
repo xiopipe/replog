@@ -2,17 +2,18 @@
 
 Claude-specific entry point. **Start by reading [`AGENTS.md`](AGENTS.md) and [`docs/constitution.md`](docs/constitution.md)** — they hold the cross-agent operating manual and the immutable principles (including the **mandatory English-only language policy** for all repo artifacts). This file only adds Claude-toolkit specifics; it does not duplicate them.
 
-## Source of truth (`docs/`)
+## Source of truth
+
+> **The canonical source of truth is the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. The repo `docs/` folder is a **secondary English mirror** — kept for in-repo cross-references and tooling, but the vault wins on any conflict.
 
 The vault is organized in three layers:
 
-- **`docs/specs/`** — the *what* (source of truth, stable):
-  - `Vision.md` · `Architecture.md` · `Tracking.md` · `Design-UX.md` + `UI-Mockups/` · `Exercise-Catalog.md` · `AI-Programming.md` · `SQL-Schema.md`
-  - `sql/01_schema.sql`, `sql/02_seed_exercises.sql` — database.
-- **`docs/process/`** — the *when/how* (living): `STATE.md` (current build status) · `Roadmap.md` · `Backlog.md` · `Build-Plan.md` · `Known-Issues.md` · `decisions/` (ADRs, MADR format) · `Discussion-Decisions.md` (historical archive).
-- **`docs/tickets/`** — the *work*: `INDEX.md` (board) + one `TKT-NNNN-*.md` per ticket.
+- **Specs (the *what*, stable):** numbered vault notes — `01 - Vision/`, `02 - Features/` (Tracking, Catálogo de ejercicios, Programación con IA, Feed), `03 - Arquitectura/`, `04 - Diseno & UX/`, `07 - SQL/`, `08 - Build Plan/`. Mirrored in `docs/specs/`.
+- **Decisions (ADRs):** vault `Decisions/NNNN-title.md` (MADR format). Mirrored in `docs/process/decisions/`.
+- **Tickets (actionable work):** vault `Tickets/INDEX.md` (board) + `Tickets/TKT-NNNN-*.md`. Mirrored in `docs/tickets/`.
+- **Process (the *when/how*, living):** vault `STATE.md` + `05 - Roadmap/` + `06 - Backlog/` + `09 - Known Issues/`. Mirrored in `docs/process/`.
 
-Consult the specs before implementing; if something is undefined, ask instead of inventing.
+Consult the vault specs before implementing; if something is undefined, ask instead of inventing.
 
 ## How to work
 

@@ -47,14 +47,14 @@ AI/programming logic, nutrition, body metrics, social feed, iOS, multiple active
 
 ## 7. Working agreement
 
-- The vault `specs/` is the **source of truth**. On conflict between code and spec, the spec wins (or the spec is updated deliberately).
-- Pick up work from `tickets/INDEX.md`; follow each ticket's EARS acceptance criteria.
+- The **canonical source of truth is the Obsidian vault** at `~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`. On conflict between code and vault, the vault wins (or the vault is updated deliberately). The repo `docs/` folder is a **secondary English mirror** of the vault — useful for in-repo cross-references, but the vault is authoritative.
+- Pick up work from the vault's `Tickets/INDEX.md`; follow each ticket's EARS acceptance criteria.
 - If something is undefined, **ask — do not invent**.
-- Record significant decisions as ADRs in `process/decisions/`.
-- Keep `process/STATE.md` current as work completes.
+- Record significant decisions as ADRs in the vault's `Decisions/` folder (MADR format). Mirror them to `docs/process/decisions/` if needed for in-repo tooling.
+- Keep `docs/process/STATE.md` current as work completes.
 
 ### 7.1 Documentation-first (MANDATORY)
 
-Before implementing any **new feature, behavior change, or architectural decision**, it must first be captured in the vault following the three-layer pattern: an **ADR** if a decision was made, a **spec** update if behavior/data changes, and **ticket(s)** with EARS acceptance criteria. Code that has no backing ticket is out of process.
+Before implementing any **new feature, behavior change, or architectural decision**, it must first be captured in the **Obsidian vault** following the three-layer pattern: an **ADR** if a decision was made, a **spec** update if behavior/data changes, and **ticket(s)** with EARS acceptance criteria. Code that has no backing ticket is out of process.
 
 The **`vault-scribe`** agent exists to produce this documentation. Whenever the work produces new scope or a decision not yet in the vault, **dispatch `vault-scribe` to document it before writing code**. This is not optional — it is how the project stays buildable by anyone, human or AI.

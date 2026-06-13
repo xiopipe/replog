@@ -1,14 +1,15 @@
 # Claude Code toolkit — RepLog
 
-Configuration so Claude Code builds RepLog following the specs in `/docs` (source of truth) and `CLAUDE.md` (domain rules).
+Configuration so Claude Code builds RepLog following the specs in the **Obsidian vault** (`~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`) — the canonical source of truth. The repo `docs/` folder is a secondary English mirror; the vault wins on any conflict. Domain rules are in `CLAUDE.md` and `docs/constitution.md`.
 
 ## Agents (`.claude/agents/`)
 Specialized subagents; Claude invokes them or you call them by name.
-- **vault-scribe** — documents new features/decisions into the vault (ADR + spec + tickets with EARS). Dispatched **before** coding new scope; writes docs only. See `docs/constitution.md` §7.1.
+- **vault-scribe** — documents new features/decisions/defects into the **canonical Obsidian vault** (`~/Documents/Obsidian Projects/01 - Projects/Fitness Tracker/`): specs + ADRs + tickets (EARS) + Known Issues, in English. Dispatched **before** coding new scope; writes docs only. The repo `docs/` is a secondary mirror; the vault is authoritative.
 - **spec-guardian** — verifies code against the specs (read-only).
 - **code-reviewer** — reviews diffs (quality, security, offline-first, i18n).
 - **offline-data-engineer** — Legend-State observables, Supabase sync, RLS, migrations.
 - **ux-implementer** — builds screens from the wireframes + tokens + a11y.
+- **product-strategist** — finds product/UX improvements by driving the real app (emulator) + reading specs; returns a prioritized, scope-aware list. Proposes only; hands accepted ideas to vault-scribe.
 
 ## Commands (`.claude/commands/`)
 Slash commands for repeated flows:
