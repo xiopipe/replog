@@ -1,0 +1,27 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="barG" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#2A65A8"/>
+      <stop offset="1" stop-color="#62B6F2"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#C2D2E2"/>
+    </linearGradient>
+  </defs>
+  <!-- mark only, scaled into the Android adaptive safe zone (~64%), transparent bg -->
+  <g transform="translate(512,520) scale(0.64) translate(-512,-503)">
+    <g fill="url(#barG)">
+      <rect x="330" y="566" width="108" height="158" rx="26"/>
+      <rect x="458" y="486" width="108" height="238" rx="26"/>
+      <rect x="586" y="396" width="108" height="328" rx="26"/>
+    </g>
+    <g transform="rotate(-10 512 338)">
+      <rect x="300" y="316" width="424" height="46" rx="23" fill="url(#steel)"/>
+      <rect x="306" y="282" width="52" height="114" rx="22" fill="#FFFFFF"/>
+      <rect x="666" y="282" width="52" height="114" rx="22" fill="#FFFFFF"/>
+      <rect x="276" y="302" width="38" height="74" rx="17" fill="#CFDEEE"/>
+      <rect x="710" y="302" width="38" height="74" rx="17" fill="#CFDEEE"/>
+    </g>
+  </g>
+</svg>
