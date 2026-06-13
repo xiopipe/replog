@@ -6,7 +6,7 @@ allowed-tools: Read, Grep, Glob
 
 You're going to work on **Phase $1** of the Build Plan.
 
-1. Read @docs/Build-Plan.md and focus on Phase $1.
+1. Read @docs/process/Build-Plan.md and focus on Phase $1.
 2. For each step, state: what to do, **which spec governs it**, and its **acceptance criterion**.
 3. Read the specs referenced in that phase before touching code.
 4. Propose an ordered plan and start with the first step.

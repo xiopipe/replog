@@ -3,7 +3,7 @@
  *
  * Domain rules source of truth:
  *   - docs/.claude/skills/hypertrophy-formulas/SKILL.md
- *   - docs/Tracking.md
+ *   - docs/specs/Tracking.md
  *   - Architecture.md
  *
  * Warm-ups (is_warmup === true) are EXCLUDED from every calculation.

@@ -2,7 +2,7 @@
  * Starter templates — hardcoded in code (not DB seeded).
  *
  * Exercises are referenced by name matching the global catalog seed exactly
- * (see docs/sql/02_seed_exercises.sql). At clone time, names not found in
+ * (see docs/specs/sql/02_seed_exercises.sql). At clone time, names not found in
  * globalExercises$ are skipped with a console.warn.
  *
  * Weekdays: 0=Monday, 1=Tuesday, 2=Wednesday, 3=Thursday, 4=Friday, 5=Saturday, 6=Sunday.

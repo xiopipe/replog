@@ -33,4 +33,4 @@ Mobile app, **dark mode by default**, readable at arm's length. Clean, flat aest
 - Fast entry in logging: numeric keypad, +/-, duplicate previous set.
 
 ## Fidelity
-Each MVP screen has a wireframe in `docs/UI-Mockups/` (`home`, `active-session`, `routine-editor`, `history`, `weekly-plan`, `session-summary`, `exercise-detail`). Respect them in layout and hierarchy. Each one's narrative is in `docs/Design-UX.md`.
+Each MVP screen has a wireframe in `docs/specs/UI-Mockups/` (`home`, `active-session`, `routine-editor`, `history`, `weekly-plan`, `session-summary`, `exercise-detail`). Respect them in layout and hierarchy. Each one's narrative is in `docs/specs/Design-UX.md`.

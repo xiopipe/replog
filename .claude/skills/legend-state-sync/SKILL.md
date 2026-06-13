@@ -34,4 +34,4 @@ RepLog works **without network**. State lives in **Legend-State observables** pe
 ## Status indicators
 - Legend-State exposes sync state per observable (pending/synced/error) — surface it in the UI when relevant, without blocking anything.
 
-References: `docs/Architecture.md` (§Offline-first and data model), `docs/sql/`.
+References: `docs/specs/Architecture.md` (§Offline-first and data model), `docs/specs/sql/`.

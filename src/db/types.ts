@@ -1,5 +1,5 @@
 /**
- * Row type definitions mirroring docs/sql/01_schema.sql exactly.
+ * Row type definitions mirroring docs/specs/sql/01_schema.sql exactly.
  * These are plain data shapes — no business logic.
  *
  * Conventions (from Architecture.md):
