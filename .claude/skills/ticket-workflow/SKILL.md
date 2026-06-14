@@ -28,15 +28,17 @@ Let `T=TKT-NNNN`, `SLUG=<short-kebab>`, `BRANCH=ticket/$T-$SLUG`, `WT=../replog-
 git -C "$REPO" worktree add "$WT" -b "$BRANCH" origin/main
 ```
 
-### 3. Wire deps into the worktree
-A worktree has no `node_modules`/`.env` (gitignored). Share the main checkout's hoisted store and regenerate Husky so hooks fire in the worktree:
+### 3. Install deps in the worktree
+A worktree has no `node_modules`/`.env` (gitignored). Do a real install (fast — pnpm hardlinks from the global store) and copy the env file:
 ```bash
 cd "$WT"
-ln -s "$REPO/node_modules" node_modules   # shared pnpm hoisted store
-ln -s "$REPO/.env" .env
-pnpm prepare                               # regenerates .husky/_ so hooks run here
+cp "$REPO/.env" .env
+CI=true pnpm install --frozen-lockfile   # deterministic tree; runs prepare → husky so hooks fire here
 ```
-If the ticket changes `package.json` deps, run a real `pnpm install` in the worktree instead of the symlink.
+- **Do not symlink `node_modules`** — pnpm tries to purge a symlinked modules dir and aborts (no-TTY). A real install is the supported path.
+- **`--frozen-lockfile`** is required: a non-frozen install re-resolves peers and the hoisted linker can hoist the wrong `jest-mock` major (→ `clearMocksOnScope is not a function`). The committed `overrides` + frozen lock keep it deterministic.
+- `CI=true` avoids the interactive modules-purge prompt.
+- If the ticket changes dependencies, drop `--frozen-lockfile`, run `pnpm install`, and commit the updated `pnpm-lock.yaml`.
 
 ### 4. Implement
 - Read the ticket's EARS acceptance criteria from `…/Fitness Tracker/Tickets/$T-*.md`.

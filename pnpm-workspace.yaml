@@ -6,3 +6,9 @@ onlyBuiltDependencies:
 allowBuilds:
   msgpackr-extract: true
   unrs-resolver: true
+# Force a single jest-mock (30.x). Two majors (29.7.0 + 30.4.1) otherwise coexist,
+# and with the hoisted linker which one hoists is nondeterministic — when 29.x wins,
+# jest-runtime@30 throws "clearMocksOnScope is not a function". Pinning makes fresh
+# installs (worktrees / CI) deterministic and correct.
+overrides:
+  jest-mock: ^30.4.1
