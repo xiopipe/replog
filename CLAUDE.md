@@ -27,14 +27,21 @@ Consult the vault before implementing; if something is undefined, ask instead of
 ## Toolkit (`.claude/`)
 
 Project-specific agents, commands, and skills (see `.claude/README.md`).
-- Commands: `/start-phase`, `/acceptance`, `/check-spec`, `/review`, `/new-screen`, `/add-i18n`, `/db-change`.
-- Agents: `vault-scribe` (documents new scope into the vault), `spec-guardian`, `code-reviewer`, `offline-data-engineer`, `ux-implementer`.
-- Skills: `hypertrophy-formulas`, `legend-state-sync`, `i18n`, `rn-screen-patterns`.
+- Commands: `/work-ticket`, `/start-phase`, `/acceptance`, `/check-spec`, `/review`, `/new-screen`, `/add-i18n`, `/db-change`.
+- Agents: `vault-scribe` (documents new scope into the vault), `product-strategist`, `spec-guardian`, `code-reviewer`, `offline-data-engineer`, `ux-implementer`.
+- Skills: `ticket-workflow`, `hypertrophy-formulas`, `legend-state-sync`, `i18n`, `rn-screen-patterns`.
 - MCP `context7` (in `.mcp.json`) for up-to-date library docs.
+
+## Dev workflow (mandatory)
+
+- **Package manager is pnpm**, not npm. Expo/RN needs a flat store → `.npmrc` sets `node-linker=hoisted`. Approvals for native build scripts live in `pnpm-workspace.yaml`.
+- **One ticket = one git worktree + one branch.** Never build a ticket on `main`. Ship via PR, merge (squash), then **remove the worktree but KEEP the branch**. Full lifecycle in the `ticket-workflow` skill / `/work-ticket TKT-NNNN`.
+- **Husky** runs checks automatically: `pre-commit` → `pnpm lint && pnpm typecheck && pnpm test`; `pre-push` → `pnpm test`. Never bypass with `--no-verify`.
 
 ## Commands
 
-- Install: `npm install`
-- Dev: `npx expo start`
-- Checks: `npm run lint` · `npm run typecheck` · `npm test`
+- Install: `pnpm install`
+- Dev: `pnpm start`
+- Checks: `pnpm verify` (= `pnpm lint && pnpm typecheck && pnpm test`)
+- Per-ticket build: `/work-ticket TKT-NNNN`
 - Android build: `eas build -p android`

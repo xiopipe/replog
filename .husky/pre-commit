@@ -1,0 +1,2 @@
+echo "🔎 pre-commit: lint + typecheck + tests"
+pnpm lint && pnpm typecheck && pnpm test

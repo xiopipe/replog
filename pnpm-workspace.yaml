@@ -1,0 +1,8 @@
+# pnpm settings. Approve build scripts for these native/optional deps so
+# `pnpm install` exits cleanly (Expo/RN use a hoisted node_modules — see .npmrc).
+onlyBuiltDependencies:
+  - msgpackr-extract
+  - unrs-resolver
+allowBuilds:
+  msgpackr-extract: true
+  unrs-resolver: true

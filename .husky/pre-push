@@ -1,0 +1,2 @@
+echo "🚦 pre-push: running test suite"
+pnpm test
