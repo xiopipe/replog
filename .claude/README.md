@@ -13,6 +13,7 @@ Specialized subagents; Claude invokes them or you call them by name.
 
 ## Commands (`.claude/commands/`)
 Slash commands for repeated flows:
+- `/work-ticket <TKT-NNNN>` — build a vault ticket end-to-end in its own git worktree + branch, PR, merge (squash), then remove the worktree but keep the branch. Uses pnpm + Husky.
 - `/start-phase <0-5>` — start a Build Plan phase (steps + criteria).
 - `/acceptance <0-5>` — check a phase's acceptance criteria.
 - `/check-spec [area]` — verify against the specs (via spec-guardian).
@@ -23,6 +24,7 @@ Slash commands for repeated flows:
 
 ## Skills (`.claude/skills/`)
 Project knowledge Claude loads when relevant:
+- **ticket-workflow** — mandatory per-ticket lifecycle: one worktree + branch per ticket → PR → merge → remove worktree, keep branch. pnpm + Husky enforced.
 - **hypertrophy-formulas** — 1RM, fractional volume, sets per muscle, PR.
 - **legend-state-sync** — offline-first data layer (Legend-State + Supabase).
 - **i18n** — internationalization rules.
