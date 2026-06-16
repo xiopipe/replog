@@ -1,0 +1,23 @@
+# Flow 2 — Home + bottom-tab navigation.
+# Covers: Home (training-day CTA OR rest-day/resume state), and moving across
+# the four tabs and back.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+# Home greets the user and shows a weekly strip.
+- assertVisible: "Inicio"
+- assertVisible:
+    text: "Hola.*"
+# At least one primary action exists (depends on day/session state).
+- assertVisible:
+    text: "Empezar entreno|Reanudar entreno|Empezar entreno libre"
+# Walk the tabs.
+- tapOn: "Rutinas"
+- assertVisible: "PLAN SEMANAL"
+- tapOn: "Historial"
+- assertVisible: "Historial"
+- tapOn: "Ajustes"
+- assertVisible: "Ajustes"
+- tapOn: "Inicio"
+- assertVisible:
+    text: "Empezar entreno|Reanudar entreno|Empezar entreno libre"

@@ -1,0 +1,12 @@
+# Maestro E2E config for RepLog
+# Run all flows:   maestro test .maestro
+# Run one flow:    maestro test .maestro/flows/03-start-and-log-session.yaml
+# Override creds:  maestro test -e EMAIL=foo@bar.com -e PASSWORD=secret .maestro
+appId: com.replog.app
+env:
+  # A test account that already exists on the Supabase project, OR one the
+  # auth flow will create. Override with -e EMAIL=… -e PASSWORD=… on the CLI.
+  EMAIL: tour.replog@example.com
+  PASSWORD: Test1234!
+flows:
+  - flows/*.yaml

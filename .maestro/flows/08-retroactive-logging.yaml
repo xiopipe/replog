@@ -1,0 +1,13 @@
+# Flow 8 — Retroactive logging: reach the past-dated workout screen from Home.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Inicio"
+- assertVisible: "Registrar entreno pasado"
+- tapOn: "Registrar entreno pasado"
+# Retroactive screen lets you pick a past date and create the session.
+- assertVisible:
+    text: "Fecha|Registrar|Crear|entreno pasado"
+- back
+- assertVisible:
+    text: "Empezar entreno|Reanudar entreno|Empezar entreno libre"

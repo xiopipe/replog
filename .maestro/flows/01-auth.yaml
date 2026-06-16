@@ -1,0 +1,25 @@
+# Flow 1 — Auth gate: launch → sign in → land in the app.
+appId: com.replog.app
+env:
+  EMAIL: tour.replog@example.com
+  PASSWORD: Test1234!
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "Iniciar sesión"
+    commands:
+      - assertVisible: "Correo electrónico"
+      - assertVisible: "Contraseña"
+      - tapOn: "Correo electrónico"
+      - inputText: ${EMAIL}
+      - tapOn: "Contraseña"
+      - inputText: ${PASSWORD}
+      - hideKeyboard
+      - tapOn: "Entrar"
+# Logged in → the four bottom tabs are present.
+- assertVisible: "Inicio"
+- assertVisible: "Rutinas"
+- assertVisible: "Historial"
+- assertVisible: "Ajustes"

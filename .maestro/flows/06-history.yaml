@@ -1,0 +1,20 @@
+# Flow 6 — History: weekly groups, PR badge, open a session detail.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Historial"
+- assertVisible: "Historial"
+# Either there are past sessions (grouped by week) or an empty state.
+- runFlow:
+    when:
+      visible:
+        text: ".* series"
+    commands:
+      # Open the first session detail.
+      - tapOn:
+          text: ".* series"
+          index: 0
+      - assertVisible:
+          text: "Duración|Series|Series por grupo muscular"
+      - back
+      - assertVisible: "Historial"

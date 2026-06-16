@@ -1,0 +1,20 @@
+# Reusable: launch the app and make sure we are past the login gate.
+# The app forces auth (app/_layout.tsx). If a session is cached we land on the
+# tabs directly; otherwise we sign in with EMAIL/PASSWORD.
+appId: com.replog.app
+---
+- launchApp
+# If the login screen is showing, sign in.
+- runFlow:
+    when:
+      visible: "Iniciar sesión"
+    commands:
+      - tapOn: "Correo electrónico"
+      - inputText: ${EMAIL}
+      - tapOn: "Contraseña"
+      - inputText: ${PASSWORD}
+      - hideKeyboard
+      - tapOn: "Entrar"
+# We are logged in once a bottom tab is visible.
+- assertVisible: "Inicio"
+- assertVisible: "Rutinas"
