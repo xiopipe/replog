@@ -9,7 +9,7 @@
  * "Siguiente ejercicio →" or "Finalizar" primary action.
  */
 
-import { useRows } from '@/db';
+import { useRows, softDelete } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -51,10 +51,17 @@ import {
   groupAsSuperset,
   groupSetsAsDropset,
   finishSession,
+  setActiveTime,
 } from '@/features/session/mutations';
+import { isSessionStale } from '@/features/session/activeTime';
+import { useActiveSessionTimer } from '@/features/session/useActiveSessionTimer';
 
 import { ActionMenu } from '@/components/ActionMenu';
-import { SessionTimer } from '@/features/session/SessionTimer';
+// SessionTimer = per-exercise timer (wall-clock time-on-current-exercise, kept
+// intentionally — see TKT-0011 out-of-scope). formatMmSs renders the session
+// timer, which now uses real active time (displaySeconds), not wall-clock.
+import { SessionTimer, formatMmSs } from '@/features/session/SessionTimer';
+import { StaleSessionModal } from '@/features/session/StaleSessionModal';
 import { ExercisePager } from '@/features/session/ExercisePager';
 import { SetRow } from '@/features/session/SetRow';
 import { PRBadge, type PRType } from '@/features/session/PRBadge';
@@ -113,6 +120,52 @@ export default function ActiveSessionScreen() {
     () => (rawSessions && sessionId ? (rawSessions[sessionId] ?? null) : null),
     [rawSessions, sessionId],
   );
+
+  // ── TKT-0011: real active-time session timer (excludes backgrounded time) ──
+  const sessionIsActive = currentSession?.status === 'in_progress';
+  const { displaySeconds, commitNow } = useActiveSessionTimer({
+    db,
+    sessionId: sessionId ?? null,
+    accumulatedSeconds: currentSession?.accumulated_active_seconds ?? 0,
+    isActive: sessionIsActive,
+  });
+
+  // ── TKT-0011: stale-session recovery prompt (reopened after a long gap) ────
+  // Derived (no setState-in-effect): capture "now" once at mount, then show the
+  // prompt while it is detected and not yet dismissed.
+  const [mountNow] = useState(() => Date.now());
+  const [staleDismissed, setStaleDismissed] = useState(false);
+  const staleModalVisible =
+    !staleDismissed &&
+    !!currentSession &&
+    currentSession.status === 'in_progress' &&
+    isSessionStale(currentSession.updated_at, mountNow);
+
+  const handleStaleContinue = useCallback(() => {
+    setStaleDismissed(true);
+  }, []);
+
+  const handleStaleFinishWithDuration = useCallback(
+    (seconds: number) => {
+      setStaleDismissed(true);
+      if (!db || !sessionId) return;
+      commitNow(); // stop the in-flight segment so unmount does not re-add time
+      // The user's entry is authoritative — even "0 min". Clamp to >= 1s so
+      // accumulated_active_seconds stays > 0 and the summary never falls back to
+      // the wall-clock (started_at→ended_at) duration we are trying to override.
+      setActiveTime(db, sessionId, Math.max(1, Math.floor(seconds)));
+      finishSession(db, sessionId);
+      router.replace(`/session/summary/${sessionId}`);
+    },
+    [db, sessionId, commitNow, router],
+  );
+
+  const handleStaleDiscard = useCallback(() => {
+    setStaleDismissed(true);
+    if (!db || !sessionId) return;
+    softDelete(db.workoutSessions$, sessionId);
+    router.replace('/(tabs)');
+  }, [db, sessionId, router]);
 
   const sessionExercises = useMemo(
     () => (rawSessionExercises && sessionId ? getSessionExercises(rawSessionExercises, sessionId) : []),
@@ -300,20 +353,23 @@ export default function ActiveSessionScreen() {
     if (nextSE) {
       setExerciseIndex(nextIndex);
     } else {
-      // Last exercise → finish session
+      // Last exercise → finish session. Commit active time first (TKT-0011) so
+      // the summary duration reflects real active time, not wall-clock.
+      commitNow();
       finishSession(db, sessionId);
       router.replace(`/session/summary/${sessionId}`);
     }
-  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router]);
+  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router, commitNow]);
 
   const handleFinishWorkout = useCallback(() => {
     if (!db || !sessionId) return;
     if (currentSE) {
       goToNextExercise(db, sessionId, currentSE.id, null);
     }
+    commitNow(); // TKT-0011: persist active time before computing the summary
     finishSession(db, sessionId);
     router.replace(`/session/summary/${sessionId}`);
-  }, [db, sessionId, currentSE, router]);
+  }, [db, sessionId, currentSE, router, commitNow]);
 
   // ── ⋮ Menu ────────────────────────────────────────────────────────────────
 
@@ -473,6 +529,14 @@ export default function ActiveSessionScreen() {
         onClose={() => setMenuVisible(false)}
       />
 
+      {/* TKT-0011: stale-session recovery prompt */}
+      <StaleSessionModal
+        visible={staleModalVisible}
+        onContinue={handleStaleContinue}
+        onFinishWithDuration={handleStaleFinishWithDuration}
+        onDiscard={handleStaleDiscard}
+      />
+
       {/* PR Badge (absolute overlay) */}
       {prInfo ? (
         <PRBadge
@@ -495,11 +559,13 @@ export default function ActiveSessionScreen() {
         </View>
         <View style={styles.headerRight}>
           <Ionicons name="timer-outline" size={14} color={colors.textSecondary} />
-          <SessionTimer
-            startedAt={currentSession.started_at}
+          {/* TKT-0011: real active time, not Date.now() - started_at */}
+          <Text
             style={styles.sessionTimerText}
             accessibilityLabel={t('session.session_timer_label')}
-          />
+          >
+            {formatMmSs(displaySeconds)}
+          </Text>
         </View>
       </View>
 

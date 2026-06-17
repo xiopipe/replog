@@ -113,6 +113,7 @@ export function startSessionFromRoutine(
     name: opts?.name ?? routine.name,
     started_at: startedAt,
     ended_at: null,
+    accumulated_active_seconds: 0,
     status: 'in_progress',
     notes: null,
     created_at: now,
@@ -175,6 +176,7 @@ export function startEmptySession(
     name: opts?.name ?? null,
     started_at: startedAt,
     ended_at: null,
+    accumulated_active_seconds: 0,
     status: 'in_progress',
     notes: null,
     created_at: now,
@@ -228,6 +230,7 @@ export function repeatLastSession(
     name: opts?.name ?? lastSession.name,
     started_at: startedAt,
     ended_at: null,
+    accumulated_active_seconds: 0,
     status: 'in_progress',
     notes: null,
     created_at: now,
@@ -720,6 +723,57 @@ export function updateSession(
     ...(patch.started_at !== undefined ? { started_at: patch.started_at } : {}),
     ...(patch.name !== undefined ? { name: patch.name } : {}),
     ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+    updated_at: now,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Active-time accumulator (TKT-0011)
+// ---------------------------------------------------------------------------
+
+/**
+ * Add a segment of real active time to a session's accumulator.
+ *
+ * Called by the session-timer hook on every foreground→background transition
+ * (and on finish/unmount) with the seconds elapsed while the app was in the
+ * foreground. Background time is therefore never added. The write persists to
+ * the local SQLite layer, so a crash mid-session recovers the last committed
+ * value rather than recomputing from started_at.
+ *
+ * deltaSeconds <= 0 is a no-op (avoids spurious updated_at bumps).
+ */
+export function addActiveTime(
+  db: UserObservables,
+  sessionId: string,
+  deltaSeconds: number,
+): void {
+  const delta = Math.floor(deltaSeconds);
+  if (!Number.isFinite(delta) || delta <= 0) return;
+  const now = new Date().toISOString();
+  (db.workoutSessions$ as any)[sessionId].set((prev: WorkoutSessionRow) => ({
+    ...prev,
+    accumulated_active_seconds: Math.max(0, (prev.accumulated_active_seconds ?? 0) + delta),
+    updated_at: now,
+  }));
+}
+
+/**
+ * Overwrite a session's accumulated active time with an absolute value.
+ *
+ * Used by the stale-session recovery flow ("Finish with real duration"), where
+ * the user supplies the real elapsed time after the timer was inflated by a
+ * long background gap. Clamps to >= 0.
+ */
+export function setActiveTime(
+  db: UserObservables,
+  sessionId: string,
+  seconds: number,
+): void {
+  const value = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const now = new Date().toISOString();
+  (db.workoutSessions$ as any)[sessionId].set((prev: WorkoutSessionRow) => ({
+    ...prev,
+    accumulated_active_seconds: value,
     updated_at: now,
   }));
 }

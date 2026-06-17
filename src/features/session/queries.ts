@@ -269,10 +269,15 @@ export function summarizeSession(
   allSessions: Record<string, WorkoutSessionRow>,
   musclesBySeId: MusclesBySessionExerciseId,
 ): SessionSummary {
+  // TKT-0011: duration is real active time (excludes backgrounded intervals).
+  // accumulated_active_seconds is the source of truth; fall back to the legacy
+  // wall-clock computation only for pre-fix rows where it is 0/absent.
   const durationMs =
-    session.started_at && session.ended_at
-      ? new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()
-      : null;
+    session.accumulated_active_seconds && session.accumulated_active_seconds > 0
+      ? session.accumulated_active_seconds * 1000
+      : session.started_at && session.ended_at
+        ? new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()
+        : null;
 
   // Collect sets for this session
   const seIdsForSession = new Set<string>(

@@ -62,6 +62,7 @@ function makeSession(overrides: Partial<WorkoutSessionRow>): WorkoutSessionRow {
     name: 'Test Session',
     started_at: '2026-01-01T10:00:00.000Z',
     ended_at: null,
+    accumulated_active_seconds: 0,
     status: 'in_progress',
     notes: null,
     created_at: '2026-01-01T10:00:00.000Z',
@@ -259,11 +260,24 @@ describe('summarizeSession', () => {
     ],
   };
 
-  it('computes durationMs from started_at / ended_at', () => {
+  it('falls back to started_at / ended_at when accumulated_active_seconds is 0 (legacy rows)', () => {
     const sets: Record<string, SetRow> = {};
     const result = summarizeSession(session, sessionExercises, sets, { [SESSION_ID]: session }, musclesBySeId);
-    // 90 minutes
+    // 90 minutes (legacy row: accumulated 0 → fallback to wall-clock)
     expect(result.durationMs).toBe(90 * 60 * 1000);
+  });
+
+  it('TKT-0011: uses accumulated_active_seconds when present, ignoring wall-clock', () => {
+    // Wall-clock would be 90 min, but real active time was only 12 min.
+    const realActive = makeSession({
+      id: SESSION_ID,
+      status: 'completed',
+      started_at: '2026-01-01T10:00:00.000Z',
+      ended_at: '2026-01-01T11:30:00.000Z',
+      accumulated_active_seconds: 12 * 60,
+    });
+    const result = summarizeSession(realActive, sessionExercises, {}, { [SESSION_ID]: realActive }, musclesBySeId);
+    expect(result.durationMs).toBe(12 * 60 * 1000);
   });
 
   it('durationMs is null when ended_at is missing', () => {

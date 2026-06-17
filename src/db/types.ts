@@ -140,6 +140,12 @@ export interface WorkoutSessionRow {
   name: string | null;
   started_at: string;
   ended_at: string | null;
+  /**
+   * Real active workout time in seconds, excluding backgrounded intervals
+   * (TKT-0011). Source of truth for session duration. Defaults to 0 on legacy
+   * rows; consumers fall back to ended_at - started_at when this is 0.
+   */
+  accumulated_active_seconds: number;
   status: SessionStatusEnum;
   notes: string | null;
   created_at: string;
