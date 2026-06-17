@@ -314,7 +314,18 @@
     "retroactive_title": "Entreno pasado",
     "retroactive_date_label": "Fecha y hora",
     "retroactive_start": "Empezar",
-    "retroactive_name_placeholder": "Nombre del entreno (opcional)"
+    "retroactive_name_placeholder": "Nombre del entreno (opcional)",
+    "stale_title": "¿Seguir con este entreno?",
+    "stale_body": "Han pasado varias horas desde tu última actividad en esta sesión. El cronómetro solo cuenta el tiempo activo, pero puedes ajustarlo.",
+    "stale_continue": "Continuar entreno",
+    "stale_finish_real": "Finalizar con duración real",
+    "stale_discard": "Descartar sesión",
+    "stale_duration_title": "Duración real",
+    "stale_duration_body": "¿Cuántos minutos duró el entreno?",
+    "stale_duration_label": "Minutos",
+    "stale_duration_a11y_label": "Ingresa la duración del entreno en minutos",
+    "stale_duration_placeholder": "Minutos",
+    "stale_duration_confirm": "Finalizar entreno"
   },
   "summary": {
     "title": "Entreno completado",
