@@ -87,6 +87,12 @@ export function MuscleFigure({ muscles, scale = 1.4 }: MuscleFigureProps) {
 
   for (const { muscle, role } of muscles) {
     const slugs = MUSCLE_TO_SLUGS[muscle];
+    if (!slugs) {
+      // Unknown muscle value (new enum, seed typo, custom exercise) — skip
+      // rather than crash on `for (const slug of undefined)`.
+      console.warn(`MuscleFigure: unknown muscle value "${muscle}", skipping`);
+      continue;
+    }
     const intensity = role === 'primary' ? 2 : 1;
     for (const slug of slugs) {
       const existing = slugMap.get(slug);
