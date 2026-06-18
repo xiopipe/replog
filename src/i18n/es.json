@@ -327,6 +327,10 @@
     "stale_duration_placeholder": "Minutos",
     "stale_duration_confirm": "Finalizar entreno"
   },
+  "duration": {
+    "hours_minutes": "{{h}} h {{m}} m",
+    "minutes_seconds": "{{m}} m {{s}} s"
+  },
   "summary": {
     "title": "Entreno completado",
     "day_routine": "{{day}} · {{routine}}",

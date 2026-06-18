@@ -34,7 +34,7 @@ import {
   summarizeSession,
 } from '@/features/session/queries';
 import type { MusclesBySessionExerciseId } from '@/lib/hypertrophy';
-import { formatMmSs } from '@/features/session/SessionTimer';
+import { formatDuration } from '@/lib/duration';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,8 +112,7 @@ function SessionCard({ data, onPress }: { data: SessionRowData; onPress: () => v
   const { t } = useTranslation();
   const { session, durationMs, effectiveSets, topMuscles, hasPR } = data;
 
-  const durationLabel =
-    durationMs != null ? formatMmSs(Math.floor(durationMs / 1000)) : '--:--';
+  const durationLabel = formatDuration(durationMs, t);
 
   const dateLabel = sessionDateLabel(session.started_at, t);
   const muscleLabels = topMuscles
