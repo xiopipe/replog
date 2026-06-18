@@ -23,7 +23,11 @@ export interface SessionTimerProps {
 
 function elapsedSeconds(startedAt: string | null): number {
   if (!startedAt) return 0;
-  const diff = Date.now() - new Date(startedAt).getTime();
+  const started = new Date(startedAt).getTime();
+  // Malformed/corrupted timestamp → getTime() is NaN, which would render as
+  // "NaN:NaN". Fall back to 0. Math.max(0, NaN) is NaN, so guard here.
+  if (Number.isNaN(started)) return 0;
+  const diff = Date.now() - started;
   return Math.max(0, Math.floor(diff / 1000));
 }
 
