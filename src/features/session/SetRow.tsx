@@ -249,7 +249,9 @@ export function SetRow({
             }}
             onDecrement={() => {
               const cur = isNaN(parsedFailureVal) ? 0 : parsedFailureVal;
-              setFailureValStr(String(Math.max(0, cur - 1)));
+              // RPE floor is 1 (scale 1–10); RIR floor is 0 (0 = reached failure).
+              const min = effectiveMetric === 'rpe' ? 1 : 0;
+              setFailureValStr(String(Math.max(min, cur - 1)));
             }}
             step={1}
             minValue={0}
