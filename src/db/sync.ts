@@ -161,13 +161,18 @@ export const customSynced = configureSynced(syncedSupabase, {
  *   softDelete(routines$, id)
  *
  * What it does:
- *   1. Writes `deleted_at` and `updated_at` to the local observable entry —
- *      the sync plugin will propagate that update to Postgres.
- *   2. Deletes the key from the local observable map so the UI stops seeing
- *      the record immediately (optimistic removal).
+ *   Writes `deleted_at` and `updated_at` to the local observable entry — the
+ *   sync plugin propagates that update to Postgres. The row stays in the local
+ *   map (with `deleted_at` set) until the next full fetch naturally excludes it.
  *
- * The `deleted_at` filter on each collection ensures the row is excluded if it
- * ever comes back from a Realtime or incremental-sync payload.
+ * Why we do NOT call `entry$.delete()` (TKT-0008): collections are configured
+ * with `actions: ['read','create','update']` (no `delete`), so `.delete()` only
+ * drops the local key — it never issues a Postgres DELETE. Removing the key in
+ * the same tick raced the debounced push: if the key vanished before the
+ * `deleted_at` UPDATE flushed, Postgres never recorded the timestamp and the row
+ * resurrected on the next full fetch (`.is('deleted_at', null)` let it back in).
+ * Every read path already filters `!deleted_at`, so writing the timestamp alone
+ * makes the row disappear from the UI immediately — no optimistic delete needed.
  *
  * @param collection$ - The synced observable (Record<string, T>).
  * @param id          - The uuid of the row to soft-delete.
@@ -177,11 +182,8 @@ export function softDelete<T extends { deleted_at?: string | null; updated_at: s
   id: string,
 ): void {
   const now = new Date().toISOString();
-  // Step 1: Write the deletion timestamp so the plugin pushes the update to Postgres.
   // Cast to any: Legend-State's Observable<Record<string,T>> does not carry a string
   // index signature at the TS level, but the runtime proxy supports dynamic key access.
   const entry$ = (collection$ as any)[id];
   entry$.set((prev: T) => ({ ...prev, deleted_at: now, updated_at: now }));
-  // Step 2: Optimistically remove from the local map so the UI reacts immediately.
-  entry$.delete();
 }
