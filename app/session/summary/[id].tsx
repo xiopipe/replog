@@ -30,7 +30,7 @@ import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
 import type { ExerciseRow, MuscleEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
-import { formatMmSs } from '@/features/session/SessionTimer';
+import { formatDuration } from '@/lib/duration';
 import {
   getSessionExercises,
   getUserUnitPreference,
@@ -173,10 +173,10 @@ export default function SessionSummaryScreen() {
   }, [currentSession, t]);
 
   // ── Duration ──────────────────────────────────────────────────────────────
-  const durationDisplay = useMemo(() => {
-    if (summary?.durationMs == null) return '--:--';
-    return formatMmSs(Math.floor(summary.durationMs / 1000));
-  }, [summary]);
+  const durationDisplay = useMemo(
+    () => formatDuration(summary?.durationMs, t),
+    [summary, t],
+  );
 
   // ── Guard states ──────────────────────────────────────────────────────────
   if (!db || rawSessions === null || rawSessionExercises === null) {

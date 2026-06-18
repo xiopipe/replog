@@ -50,7 +50,7 @@ import {
 import { addSet, updateSet, deleteSet, updateSession } from '@/features/session/mutations';
 import { SetRow } from '@/features/session/SetRow';
 import type { MusclesBySessionExerciseId } from '@/lib/hypertrophy';
-import { formatMmSs } from '@/features/session/SessionTimer';
+import { formatDuration } from '@/lib/duration';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -184,10 +184,7 @@ export default function SessionDetailScreen() {
     );
   }
 
-  const durationLabel =
-    summary?.durationMs != null
-      ? formatMmSs(Math.floor(summary.durationMs / 1000))
-      : '--:--';
+  const durationLabel = formatDuration(summary?.durationMs, t);
 
   const topMuscles = summary
     ? (Object.entries(summary.volumeByMuscle) as [MuscleEnum, number][]).sort(
