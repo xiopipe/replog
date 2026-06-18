@@ -64,6 +64,7 @@ import { SessionTimer, formatMmSs } from '@/features/session/SessionTimer';
 import { StaleSessionModal } from '@/features/session/StaleSessionModal';
 import { ExercisePager } from '@/features/session/ExercisePager';
 import { SetRow } from '@/features/session/SetRow';
+import { formatWeight } from '@/features/session/weight-format';
 import { PRBadge, type PRType } from '@/features/session/PRBadge';
 
 // ---------------------------------------------------------------------------
@@ -252,10 +253,7 @@ export default function ActiveSessionScreen() {
         );
         const { is1RM, isRepPR } = detectPR(updatedSet, history);
         if (is1RM || isRepPR) {
-          const weightDisplay =
-            updatedSet.weight_value != null
-              ? `${updatedSet.weight_value} ${updatedSet.weight_unit ?? userUnit}`
-              : `${updatedSet.weight_kg} kg`;
+          const weightDisplay = formatWeight(updatedSet, userUnit);
 
           // TKT-0027: Determine which PR type to display (prefer 1RM).
           const resolvedPrType: PRType = is1RM ? '1rm' : 'rep';
@@ -619,32 +617,24 @@ export default function ActiveSessionScreen() {
               accessibilityLabel={
                 lastSessionFirstSet.rir != null
                   ? t('session.last_time', {
-                      weight: lastSessionFirstSet.weight_value != null
-                        ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
-                        : `${lastSessionFirstSet.weight_kg} kg`,
+                      weight: formatWeight(lastSessionFirstSet, userUnit),
                       reps: lastSessionFirstSet.reps ?? '?',
                       rir: lastSessionFirstSet.rir,
                     })
                   : t('session.last_time_no_rir', {
-                      weight: lastSessionFirstSet.weight_value != null
-                        ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
-                        : `${lastSessionFirstSet.weight_kg} kg`,
+                      weight: formatWeight(lastSessionFirstSet, userUnit),
                       reps: lastSessionFirstSet.reps ?? '?',
                     })
               }
             >
               {lastSessionFirstSet.rir != null
                 ? t('session.last_time', {
-                    weight: lastSessionFirstSet.weight_value != null
-                      ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
-                      : `${lastSessionFirstSet.weight_kg} kg`,
+                    weight: formatWeight(lastSessionFirstSet, userUnit),
                     reps: lastSessionFirstSet.reps ?? '?',
                     rir: lastSessionFirstSet.rir,
                   })
                 : t('session.last_time_no_rir', {
-                    weight: lastSessionFirstSet.weight_value != null
-                      ? `${lastSessionFirstSet.weight_value} ${lastSessionFirstSet.weight_unit ?? userUnit}`
-                      : `${lastSessionFirstSet.weight_kg} kg`,
+                    weight: formatWeight(lastSessionFirstSet, userUnit),
                     reps: lastSessionFirstSet.reps ?? '?',
                   })}
             </Text>
