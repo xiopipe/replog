@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { SetRow as SetRowData, FailureMetricEnum, UnitEnum } from '@/db';
 import { colors, spacing, typography, radius, TOUCH_TARGET } from '@/lib/theme';
+import { parseDecimalFloat } from '@/lib/parseDecimal';
 
 export interface SetRowProps {
   set: SetRowData;
@@ -146,7 +147,7 @@ export function SetRow({
   });
 
   // Parse helpers
-  const parsedWeight = parseFloat(weightStr);
+  const parsedWeight = parseDecimalFloat(weightStr);
   const parsedReps = parseInt(repsStr, 10);
   const parsedFailureVal = parseInt(failureValStr, 10);
 
