@@ -262,7 +262,8 @@
     "relative_time_days_one": "{{count}} d",
     "relative_time_days_other": "{{count}} d",
     "relative_time_yesterday": "ayer",
-    "today_rest_cta": "Hoy es día de descanso. ¿Quieres entrenar igualmente?"
+    "today_rest_card_title": "Día de descanso",
+    "today_rest_cta": "¿Quieres entrenar igualmente?"
   },
   "session": {
     "exercise_progress": "Ejercicio {{current}} de {{total}}",

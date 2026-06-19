@@ -324,7 +324,7 @@ export default function HomeScreen() {
           </Card>
         ) : (
           <Card style={styles.restCard}>
-            <Text style={styles.restCardText}>{t('home.today_rest')}</Text>
+            <Text style={styles.restCardText}>{t('home.today_rest_card_title')}</Text>
             <Text style={styles.restCardSub}>{t('home.today_rest_cta')}</Text>
           </Card>
         )}
