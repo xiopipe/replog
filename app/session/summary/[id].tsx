@@ -224,7 +224,9 @@ export default function SessionSummaryScreen() {
             <Text style={styles.checkIcon}>✓</Text>
           </View>
           <Text style={styles.successTitle}>{t('summary.title')}</Text>
-          <Text style={styles.successSubtitle}>{headerLabel}</Text>
+          <Text style={styles.successSubtitle} numberOfLines={1} ellipsizeMode="tail">
+            {headerLabel}
+          </Text>
         </View>
 
         {/* ── Stats cards ── */}
@@ -271,7 +273,9 @@ export default function SessionSummaryScreen() {
                     <Text style={styles.prIcon}>🏆</Text>
                   </View>
                   <View style={styles.prTextWrapper}>
-                    <Text style={styles.prExercise}>{pr.exerciseName}</Text>
+                    <Text style={styles.prExercise} numberOfLines={1} ellipsizeMode="tail">
+                      {pr.exerciseName}
+                    </Text>
                     <Text style={styles.prDesc}>
                       {pr.weight} × {pr.reps}
                     </Text>

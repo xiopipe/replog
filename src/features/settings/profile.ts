@@ -81,8 +81,13 @@ export function updateProfile(
       updated_at: now,
     }));
   } else {
-    // Upsert a minimal row so changes are captured before the DB row syncs
-    const newRow: ProfileRow = {
+    // Upsert a minimal row so changes are captured before the DB row syncs.
+    // TKT-0009 #6: do NOT include created_at here. The handle_new_user trigger
+    // creates the Postgres row with the authoritative created_at. Pushing a
+    // client-fabricated value in the upsert payload would overwrite it on the
+    // server. Omit the field locally; the next sync fetch reconciles it from
+    // the server. Omit<ProfileRow, 'created_at'> keeps tsc satisfied.
+    const newRow: Omit<ProfileRow, 'created_at'> = {
       id: userId,
       display_name: patch.display_name ?? null,
       unit_preference: patch.unit_preference ?? 'kg',
@@ -93,7 +98,6 @@ export function updateProfile(
       equipment: patch.equipment ?? null,
       priority_muscles: patch.priority_muscles ?? null,
       limitations: patch.limitations ?? null,
-      created_at: now,
       updated_at: now,
     };
     (db.profiles$ as any)[userId].set(newRow);

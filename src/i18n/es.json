@@ -51,7 +51,8 @@
     "unknown_exercise": "Ejercicio desconocido",
     "no_sets": "Sin series registradas.",
     "date_label": "Fecha de inicio",
-    "edit_date": "Editar fecha"
+    "edit_date": "Editar fecha",
+    "delete_set_confirm": "¿Eliminar esta serie? Esta acción no se puede deshacer."
   },
   "settings": {
     "title": "Ajustes",
@@ -301,6 +302,7 @@
     "pr_badge_title_rep": "¡Récord de reps!",
     "pr_badge_desc": "{{exercise}} · {{weight}} × {{reps}}",
     "pr_badge_delta": "+{{delta}} {{unit}} est.",
+    "pr_badge_a11y": "{{title}} {{exercise}} {{weight}} × {{reps}}",
     "last_time": "Última vez: {{weight}} × {{reps}} @ {{rir}} RIR",
     "last_time_no_rir": "Última vez: {{weight}} × {{reps}}",
     "reached_failure_toggle": "Al fallo",

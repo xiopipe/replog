@@ -676,7 +676,7 @@ export default function ActiveSessionScreen() {
       >
         {currentSets.map((set, idx) => (
           <SetRow
-            key={set.id}
+            key={`${set.id}:${set.updated_at}`}
             set={set}
             index={idx}
             isBodyweight={currentExercise?.is_bodyweight ?? false}
