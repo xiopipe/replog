@@ -37,6 +37,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { globalExercises$ } from '@/db';
 import { colors, spacing, radius, typography, TOUCH_TARGET } from '@/lib/theme';
+import { parseDecimalFloat } from '@/lib/parseDecimal';
 import {
   getRoutineExercises,
   buildTargetSummary,
@@ -505,7 +506,7 @@ function TargetEditorModal({
     return isNaN(n) ? null : n;
   };
   const parseFloatOrNull = (s: string): number | null => {
-    const n = parseFloat(s);
+    const n = parseDecimalFloat(s);
     return isNaN(n) ? null : n;
   };
 
