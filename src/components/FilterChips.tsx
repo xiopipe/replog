@@ -19,6 +19,9 @@ export function FilterChips({ options, selected, onSelect, accessibilityLabel }:
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // flexGrow:0 so the row hugs its content height instead of grabbing all
+      // leftover vertical space when placed in a flex column (TKT-0001).
+      style={styles.scroll}
       contentContainerStyle={styles.row}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="menu"
@@ -47,8 +50,12 @@ export function FilterChips({ options, selected, onSelect, accessibilityLabel }:
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flexGrow: 0,
+  },
   row: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
