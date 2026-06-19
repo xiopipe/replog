@@ -276,7 +276,12 @@ export function summarizeSession(
     session.accumulated_active_seconds && session.accumulated_active_seconds > 0
       ? session.accumulated_active_seconds * 1000
       : session.started_at && session.ended_at
-        ? new Date(session.ended_at).getTime() - new Date(session.started_at).getTime()
+        ? // TKT-0009 #3: clamp to 0 so a started_at edited to after ended_at
+          // yields 0, never a negative duration.
+          Math.max(
+            0,
+            new Date(session.ended_at).getTime() - new Date(session.started_at).getTime(),
+          )
         : null;
 
   // Collect sets for this session

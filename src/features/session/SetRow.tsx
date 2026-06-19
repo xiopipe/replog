@@ -146,6 +146,13 @@ export function SetRow({
     return '';
   });
 
+  // TKT-0009 #4: local input state is re-seeded from the `set` prop whenever the
+  // underlying set changes (external edit / duplication / reorder). This is driven
+  // by the `key={set.id}:{set.updated_at}` at the render site, which remounts the
+  // row so these useState initializers re-run with the fresh values. Local edits
+  // only touch the DB on confirm, so updated_at (hence the remount) changes only
+  // after a confirm — never mid-typing.
+
   // Parse helpers
   const parsedWeight = parseDecimalFloat(weightStr);
   const parsedReps = parseInt(repsStr, 10);

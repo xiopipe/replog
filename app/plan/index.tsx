@@ -253,7 +253,11 @@ function WeekdayRow({
 
       <View style={styles.dayContent}>
         <Text style={styles.dayLabel}>{t(`weekdays.${summary.weekday}`)}</Text>
-        <Text style={[styles.dayName, !hasRoutine && styles.dayNameRest]}>
+        <Text
+          style={[styles.dayName, !hasRoutine && styles.dayNameRest]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {summary.routine?.name ?? t('weekly_plan.rest')}
         </Text>
       </View>
@@ -332,7 +336,9 @@ function RoutinePickerModal({
                   accessibilityRole="button"
                   accessibilityLabel={item.name}
                 >
-                  <Text style={styles.modalItemText}>{item.name}</Text>
+                  <Text style={styles.modalItemText} numberOfLines={1} ellipsizeMode="tail">
+                    {item.name}
+                  </Text>
                   <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
                 </Pressable>
               )}

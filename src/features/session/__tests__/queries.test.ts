@@ -286,6 +286,19 @@ describe('summarizeSession', () => {
     expect(result.durationMs).toBeNull();
   });
 
+  it('TKT-0009 #3: clamps durationMs to 0 when started_at is edited to after ended_at', () => {
+    // Legacy row (accumulated 0) whose started_at was edited to be later than ended_at.
+    const inverted = makeSession({
+      id: SESSION_ID,
+      status: 'completed',
+      started_at: '2026-01-01T12:00:00.000Z',
+      ended_at: '2026-01-01T11:30:00.000Z',
+      accumulated_active_seconds: 0,
+    });
+    const result = summarizeSession(inverted, sessionExercises, {}, { [SESSION_ID]: inverted }, musclesBySeId);
+    expect(result.durationMs).toBe(0);
+  });
+
   it('effectiveSets excludes warmups', () => {
     const sets: Record<string, SetRow> = {
       's-w': makeSet({ id: 's-w', session_exercise_id: SE_ID, is_warmup: true }),

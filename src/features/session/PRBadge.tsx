@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing, typography } from '@/lib/theme';
 import type { UnitEnum } from '@/db';
@@ -40,6 +41,7 @@ export function PRBadge({
   userUnit = 'kg',
 }: PRBadgeProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   // Animated.Value is created once and stored in state so it's stable across renders
   // and not accessed as a ref property during render.
   const [opacity] = useState(() => new Animated.Value(0));
@@ -84,13 +86,16 @@ export function PRBadge({
       })
     : null;
 
+  // TKT-0009 #9: compose the whole label (incl. "×" and word order) through t()
+  // so it is translatable, instead of concatenating a hardcoded string.
   const a11yLabel =
-    `${titleLabel} ${exerciseName} ${weight} × ${reps}` +
+    t('session.pr_badge_a11y', { title: titleLabel, exercise: exerciseName, weight, reps }) +
     (deltaLabel ? ` ${deltaLabel}` : '');
 
   return (
     <Animated.View
-      style={[styles.container, { opacity }]}
+      // TKT-0009 #2: offset by the safe-area inset so the badge clears the status bar.
+      style={[styles.container, { opacity, top: insets.top + spacing.xs }]}
       accessible
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
@@ -117,7 +122,7 @@ export function PRBadge({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 12,
+    // `top` is applied inline from the safe-area inset (TKT-0009 #2).
     left: spacing.lg,
     right: spacing.lg,
     backgroundColor: colors.warningBg,

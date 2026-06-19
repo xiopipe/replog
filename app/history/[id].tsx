@@ -364,7 +364,7 @@ export default function SessionDetailScreen() {
 
                 {exerciseSets.map((set, idx) => (
                   <SetRow
-                    key={set.id}
+                    key={`${set.id}:${set.updated_at}`}
                     set={set}
                     index={idx}
                     isBodyweight={isBodyweight}
@@ -390,7 +390,7 @@ export default function SessionDetailScreen() {
                       });
                     }}
                     onDelete={() => {
-                      Alert.alert(t('common.delete'), '', [
+                      Alert.alert(t('common.delete'), t('history.delete_set_confirm'), [
                         { text: t('common.cancel'), style: 'cancel' },
                         {
                           text: t('common.delete'),
