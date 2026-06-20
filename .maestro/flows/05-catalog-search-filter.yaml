@@ -1,0 +1,22 @@
+# Flow 5 — Exercise catalog: search + filter by muscle group.
+# Reached through the routine editor's "Añadir ejercicio".
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Rutinas"
+- tapOn:
+    text: ".* ejercicios"
+    index: 0
+- tapOn: "+ Añadir ejercicio"
+- assertVisible: "Buscar ejercicio"
+# Filter by a muscle group.
+- assertVisible: "Pecho"
+- tapOn: "Pecho"
+# Search by text.
+- tapOn: "Buscar ejercicio"
+- inputText: "Barbell"
+- hideKeyboard
+- assertVisible:
+    text: "Barbell.*"
+# Reset filter.
+- tapOn: "Todos"

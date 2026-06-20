@@ -1,0 +1,42 @@
+# Flow 3 — The core loop: start/resume a session, log a set, use set actions,
+# advance exercises, and finish.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Inicio"
+# Enter a session: prefer starting a new one; otherwise resume the active one.
+- runFlow:
+    when:
+      visible: "Empezar entreno"
+    commands:
+      - tapOn: "Empezar entreno"
+- runFlow:
+    when:
+      visible: "Reanudar entreno"
+    commands:
+      - tapOn: "Reanudar entreno"
+# We are in the focused session: progress indicator + a set row.
+- assertVisible:
+    text: "Ejercicio .* de .*"
+- assertVisible: "Peso"
+- assertVisible: "Reps"
+# Add a set and duplicate it.
+- assertVisible: "+ Serie"
+- tapOn: "+ Serie"
+- assertVisible: "Duplicar"
+- tapOn: "Duplicar"
+# Toggle "Al fallo" on the active set.
+- tapOn: "Al fallo"
+# Advance to the next exercise.
+- assertVisible:
+    text: "Siguiente ejercicio"
+- tapOn:
+    text: "Siguiente ejercicio"
+- assertVisible:
+    text: "Ejercicio .* de .*"
+# Finish the workout (lands on the summary).
+- assertVisible: "Finalizar entreno"
+- tapOn: "Finalizar entreno"
+# Summary screen — duration + sets-per-muscle (best-effort assertions).
+- assertVisible:
+    text: "Duración|Series|Resumen|Series por grupo muscular"

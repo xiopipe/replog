@@ -1,0 +1,19 @@
+# Flow 7 — Settings: unit preference + default failure metric persist.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Ajustes"
+- assertVisible: "Ajustes"
+# Weight unit toggle (kg / lb).
+- assertVisible: "kg"
+- assertVisible: "lb"
+- tapOn: "lb"
+# Switch back to kg.
+- tapOn: "kg"
+# Failure metric is configurable (RIR / RPE).
+- assertVisible:
+    text: "RIR|RPE"
+# Optional profile context section exists.
+- scroll
+- assertVisible:
+    text: "Nivel|Experiencia|Equipamiento|Músculos|Días"

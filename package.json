@@ -60,6 +60,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "test:e2e": "maestro test .maestro",
     "test:watch": "jest --watch",
     "verify": "pnpm lint && pnpm typecheck && pnpm test",
     "prepare": "husky"

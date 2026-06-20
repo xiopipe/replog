@@ -1,0 +1,22 @@
+# Flow 4 — Routines: weekly plan, routine list, open the editor, reach the
+# exercise picker.
+appId: com.replog.app
+---
+- runFlow: ../subflows/ensure-logged-in.yaml
+- tapOn: "Rutinas"
+- assertVisible: "PLAN SEMANAL"
+- assertVisible: "Nueva rutina"
+# Open the first routine → it opens the editor.
+- tapOn:
+    text: ".* ejercicios"
+    index: 0
+- assertVisible: "Editar rutina"
+- assertVisible: "NOMBRE"
+- assertVisible: "EJERCICIOS"
+- assertVisible: "+ Añadir ejercicio"
+# Open the exercise picker, then back out without changes.
+- tapOn: "+ Añadir ejercicio"
+- assertVisible: "Buscar ejercicio"
+- back
+- back
+- assertVisible: "PLAN SEMANAL"
