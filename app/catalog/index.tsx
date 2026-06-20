@@ -26,12 +26,12 @@ import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { SearchBar } from '@/components/SearchBar';
 import { EmptyState } from '@/components/EmptyState';
 import { globalExercises$, globalExerciseMuscles$ } from '@/db';
-import type { MuscleEnum } from '@/db';
+import type { EquipmentEnum, MuscleEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
 import { getFilteredExercises } from '@/features/catalog/queries';
 import { ExerciseRow } from '@/features/catalog/ExerciseRow';
-import { MUSCLE_KEYS } from '@/features/catalog/constants';
+import { EQUIPMENT_KEYS, MUSCLE_KEYS } from '@/features/catalog/constants';
 import { addExerciseToRoutine } from '@/features/routines/mutations';
 import {
   addExerciseToSession,
@@ -58,6 +58,7 @@ export default function CatalogScreen() {
 
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<MuscleEnum | null>(null);
+  const [filterEquipment, setFilterEquipment] = useState<EquipmentEnum | null>(null);
 
   // Reactive reads — these re-render when the observable changes
   const globalExercises = useRows(globalExercises$);
@@ -77,14 +78,31 @@ export default function CatalogScreen() {
         rawUserMuscles ?? {},
         search,
         filterMuscle,
+        filterEquipment,
       ),
-    [globalExercises, rawUserExercises, globalMuscles, rawUserMuscles, search, filterMuscle],
+    [
+      globalExercises,
+      rawUserExercises,
+      globalMuscles,
+      rawUserMuscles,
+      search,
+      filterMuscle,
+      filterEquipment,
+    ],
   );
 
   const chipOptions: ChipOption[] = useMemo(
     () => [
       { key: '__all__', label: t('catalog.all_muscles') },
       ...MUSCLE_KEYS.map((m) => ({ key: m, label: t(`muscles.${m}`) })),
+    ],
+    [t],
+  );
+
+  const equipmentChipOptions: ChipOption[] = useMemo(
+    () => [
+      { key: '__all__', label: t('catalog.all_equipment') },
+      ...EQUIPMENT_KEYS.map((e) => ({ key: e, label: t(`equipment.${e}`) })),
     ],
     [t],
   );
@@ -97,7 +115,16 @@ export default function CatalogScreen() {
     }
   };
 
+  const handleEquipmentSelect = (key: string | null) => {
+    if (!key || key === '__all__') {
+      setFilterEquipment(null);
+    } else {
+      setFilterEquipment(key as EquipmentEnum);
+    }
+  };
+
   const chipSelected = filterMuscle ?? '__all__';
+  const equipmentSelected = filterEquipment ?? '__all__';
 
   /** In picker mode: add exercise to routine and go back. */
   const handlePickerSelect = (exerciseId: string) => {
@@ -175,12 +202,18 @@ export default function CatalogScreen() {
         />
       </View>
 
-      {/* Filter chips */}
+      {/* Filter chips: muscle group, then equipment (combined with AND logic) */}
       <FilterChips
         options={chipOptions}
         selected={chipSelected}
         onSelect={handleChipSelect}
-        accessibilityLabel={t('catalog.title')}
+        accessibilityLabel={t('catalog.filter_by_muscle')}
+      />
+      <FilterChips
+        options={equipmentChipOptions}
+        selected={equipmentSelected}
+        onSelect={handleEquipmentSelect}
+        accessibilityLabel={t('catalog.filter_by_equipment')}
       />
 
       {/* List */}
@@ -196,7 +229,11 @@ export default function CatalogScreen() {
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <EmptyState
-              message={search || filterMuscle ? t('catalog.empty_search') : t('catalog.empty_catalog')}
+              message={
+                search || filterMuscle || filterEquipment
+                  ? t('catalog.empty_search')
+                  : t('catalog.empty_catalog')
+              }
             />
           }
           renderItem={({ item }) => (

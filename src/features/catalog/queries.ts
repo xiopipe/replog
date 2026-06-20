@@ -57,6 +57,7 @@ export interface CreateExerciseInput {
  * @param userMuscles      - Record from db.userExerciseMuscles$ observable (or {})
  * @param search           - Case-insensitive substring to match against name
  * @param filterMuscle     - If set, only exercises that include this muscle group
+ * @param filterEquipment  - If set, only exercises with this equipment category (AND with filterMuscle)
  */
 export function getFilteredExercises(
   globalExercises: Record<string, ExerciseRow>,
@@ -65,6 +66,7 @@ export function getFilteredExercises(
   userMuscles: Record<string, ExerciseMuscleRow>,
   search: string,
   filterMuscle: MuscleEnum | null,
+  filterEquipment: EquipmentEnum | null = null,
 ): ExerciseWithMuscles[] {
   // Merge and exclude soft-deleted
   const allExercises: ExerciseRow[] = [
@@ -108,6 +110,10 @@ export function getFilteredExercises(
     }
 
     if (filterMuscle && !muscles.some((m) => m.muscle === filterMuscle)) {
+      continue;
+    }
+
+    if (filterEquipment && ex.category !== filterEquipment) {
       continue;
     }
 
