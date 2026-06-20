@@ -30,7 +30,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
-import { colors, spacing, typography, TOUCH_TARGET, radius } from '@/lib/theme';
+import { colors, spacing, typography, TOUCH_TARGET, radius, routinePalette } from '@/lib/theme';
+import { abbreviateRoutine, routineColorMap } from '@/features/routines/routine-label';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { getActivePlan, getWeekdaySummaries } from '@/features/routines/queries';
@@ -417,11 +418,25 @@ function WeeklyStrip({
   todayIndex: number;
   t: (key: string) => string;
 }) {
+  // Stable distinct color per routine in this plan (TKT-0054). Distinguishes
+  // routines whose abbreviations still collide (e.g. Push/Pull → "Pu").
+  const colorByRoutine = useMemo(
+    () =>
+      routineColorMap(
+        weekdays.filter((d) => d.routine).map((d) => d.routine!.id),
+        routinePalette,
+      ),
+    [weekdays],
+  );
+
   return (
     <View style={styles.strip} accessibilityRole="none">
       {weekdays.map((d) => {
         const isToday = d.weekday === todayIndex;
         const hasRoutine = d.routine !== null;
+        // Color the active circle's border per routine; today keeps the accent
+        // highlight so it stays distinguishable regardless of label format.
+        const routineColor = d.routine ? colorByRoutine[d.routine.id] : undefined;
 
         return (
           <View
@@ -435,6 +450,7 @@ function WeeklyStrip({
               style={[
                 styles.stripCircle,
                 hasRoutine && styles.stripCircleActive,
+                hasRoutine && !isToday && routineColor ? { borderColor: routineColor } : null,
                 isToday && styles.stripCircleToday,
               ]}
             >
@@ -446,7 +462,7 @@ function WeeklyStrip({
                 ]}
                 numberOfLines={1}
               >
-                {d.routine ? d.routine.name.charAt(0).toUpperCase() : '·'}
+                {d.routine ? abbreviateRoutine(d.routine.name) : '·'}
               </Text>
             </View>
           </View>

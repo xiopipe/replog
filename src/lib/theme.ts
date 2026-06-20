@@ -47,6 +47,19 @@ export const light = {
 // MVP defaults to dark.
 export const colors = dark;
 
+/**
+ * Categorical colors for distinguishing routines at a glance (e.g. the weekly
+ * strip, TKT-0054). Stable, distinct hues that read on the dark surface.
+ */
+export const routinePalette = [
+  '#2F6FB0', // blue (accent)
+  '#1D9E75', // green
+  '#C9772E', // amber
+  '#8E6FCB', // purple
+  '#C2506E', // pink
+  '#3E9E9E', // teal
+] as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,
