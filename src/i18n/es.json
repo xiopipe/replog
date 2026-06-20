@@ -36,7 +36,9 @@
   },
   "history": {
     "title": "Historial",
-    "empty": "Aquí verás tus entrenamientos.",
+    "empty": "Aún no tienes entrenamientos.\nEmpieza hoy o registra uno pasado.",
+    "empty_cta_start": "Empezar el entreno de hoy",
+    "empty_cta_past": "Registrar un entreno pasado",
     "sets_by_group": "Series por grupo muscular",
     "this_week": "Esta semana",
     "last_week": "Semana pasada",

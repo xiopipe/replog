@@ -9,7 +9,7 @@
 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { openAndroidDateTime } from '@/lib/datetime-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -32,7 +32,12 @@ export default function RetroactiveSessionScreen() {
   const router = useRouter();
   const { db, session } = useAuth();
 
-  const [date, setDate] = useState(new Date());
+  // TKT-0041: when reached from the History empty-state CTA, pre-set the date to
+  // yesterday (the common case for logging a missed workout). Defaults to today.
+  const { preset } = useLocalSearchParams<{ preset?: string }>();
+  const [date, setDate] = useState(() =>
+    preset === 'yesterday' ? new Date(Date.now() - 24 * 60 * 60 * 1000) : new Date(),
+  );
   const [name, setName] = useState('');
   const [showPicker, setShowPicker] = useState(Platform.OS === 'ios');
 
