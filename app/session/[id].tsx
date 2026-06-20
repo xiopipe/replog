@@ -39,6 +39,7 @@ import {
   detectPR,
   getUserUnitPreference,
   getUserDefaultFailureMetric,
+  countExercisesWithoutWorkingSets,
 } from '@/features/session/queries';
 import { toCanonicalKg, estimated1RM, kgToLb } from '@/lib/hypertrophy';
 import {
@@ -340,34 +341,64 @@ export default function ActiveSessionScreen() {
   }, [db, currentSE, currentSets, handleAddSet]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
+
+  // TKT-0023: confirm an early finish when planned exercises remain unlogged.
+  // Runs `proceed` immediately for unplanned sessions (no routine) or when every
+  // exercise has a working set; otherwise asks first. The count is computed
+  // before `proceed` mutates anything, so "Back to workout" leaves state intact.
+  const confirmFinishIfNeeded = useCallback(
+    (proceed: () => void) => {
+      const isPlanned = currentSession?.routine_id != null;
+      const remaining = rawSets ? countExercisesWithoutWorkingSets(sessionExercises, rawSets) : 0;
+      if (!isPlanned || remaining === 0) {
+        proceed();
+        return;
+      }
+      Alert.alert(
+        t('session.finish_confirm_title'),
+        t('session.finish_confirm_body', { count: remaining }),
+        [
+          { text: t('session.finish_confirm_back'), style: 'cancel' },
+          { text: t('session.finish_confirm_finish'), style: 'destructive', onPress: proceed },
+        ],
+      );
+    },
+    [currentSession, rawSets, sessionExercises, t],
+  );
+
   const handleNextExercise = useCallback(() => {
     if (!db || !currentSE || !sessionId) return;
 
     const nextIndex = safeIndex + 1;
     const nextSE = sessionExercises[nextIndex] ?? null;
 
-    goToNextExercise(db, sessionId, currentSE.id, nextSE?.id ?? null);
-
     if (nextSE) {
+      goToNextExercise(db, sessionId, currentSE.id, nextSE.id);
       setExerciseIndex(nextIndex);
     } else {
-      // Last exercise → finish session. Commit active time first (TKT-0011) so
-      // the summary duration reflects real active time, not wall-clock.
-      commitNow();
-      finishSession(db, sessionId);
-      router.replace(`/session/summary/${sessionId}`);
+      // Last exercise → finish session (confirm first if exercises remain
+      // unlogged). Commit active time first (TKT-0011) so the summary duration
+      // reflects real active time, not wall-clock.
+      confirmFinishIfNeeded(() => {
+        goToNextExercise(db, sessionId, currentSE.id, null);
+        commitNow();
+        finishSession(db, sessionId);
+        router.replace(`/session/summary/${sessionId}`);
+      });
     }
-  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router, commitNow]);
+  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router, commitNow, confirmFinishIfNeeded]);
 
   const handleFinishWorkout = useCallback(() => {
     if (!db || !sessionId) return;
-    if (currentSE) {
-      goToNextExercise(db, sessionId, currentSE.id, null);
-    }
-    commitNow(); // TKT-0011: persist active time before computing the summary
-    finishSession(db, sessionId);
-    router.replace(`/session/summary/${sessionId}`);
-  }, [db, sessionId, currentSE, router, commitNow]);
+    confirmFinishIfNeeded(() => {
+      if (currentSE) {
+        goToNextExercise(db, sessionId, currentSE.id, null);
+      }
+      commitNow(); // TKT-0011: persist active time before computing the summary
+      finishSession(db, sessionId);
+      router.replace(`/session/summary/${sessionId}`);
+    });
+  }, [db, sessionId, currentSE, router, commitNow, confirmFinishIfNeeded]);
 
   // ── ⋮ Menu ────────────────────────────────────────────────────────────────
 

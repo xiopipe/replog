@@ -100,6 +100,24 @@ export function getSetsForSessionExercise(
 }
 
 /**
+ * TKT-0023: count session exercises that have zero logged *working* sets.
+ *
+ * "Logged" = at least one non-warmup set (impl note: is_warmup = false,
+ * deleted_at IS NULL). An exercise with no sets, or only warmup sets, counts as
+ * not-logged. Pass `sessionExercises` already filtered to the non-skipped,
+ * non-deleted list (as `getSessionExercises` returns) — skipped exercises are
+ * soft-deleted and therefore excluded upstream.
+ */
+export function countExercisesWithoutWorkingSets(
+  sessionExercises: SessionExerciseRow[],
+  sets: Record<string, SetRow>,
+): number {
+  return sessionExercises.filter((se) =>
+    getSetsForSessionExercise(sets, se.id).every((s) => s.is_warmup),
+  ).length;
+}
+
+/**
  * Return all WORKING sets the user has ever logged for a given exercise,
  * across all sessions except (optionally) the current one.
  *

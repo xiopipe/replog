@@ -15,6 +15,7 @@ import {
   summarizeSession,
   getActiveSession,
   getExerciseHistorySets,
+  countExercisesWithoutWorkingSets,
 } from '@/features/session/queries';
 import type {
   SetRow,
@@ -90,6 +91,48 @@ function makeSessionExercise(overrides: Partial<SessionExerciseRow>): SessionExe
     ...overrides,
   };
 }
+
+// ---------------------------------------------------------------------------
+// countExercisesWithoutWorkingSets (TKT-0023)
+// ---------------------------------------------------------------------------
+
+describe('countExercisesWithoutWorkingSets', () => {
+  const seA = makeSessionExercise({ id: 'se-a' });
+  const seB = makeSessionExercise({ id: 'se-b' });
+
+  function setsById(...sets: SetRow[]): Record<string, SetRow> {
+    return Object.fromEntries(sets.map((s) => [s.id, s]));
+  }
+
+  it('counts an exercise with no sets as not-logged', () => {
+    expect(countExercisesWithoutWorkingSets([seA, seB], {})).toBe(2);
+  });
+
+  it('does not count an exercise that has a working set', () => {
+    const sets = setsById(makeSet({ id: 's1', session_exercise_id: 'se-a', is_warmup: false }));
+    expect(countExercisesWithoutWorkingSets([seA, seB], sets)).toBe(1); // only se-b remains
+  });
+
+  it('counts a warmup-only exercise as not-logged', () => {
+    const sets = setsById(makeSet({ id: 's1', session_exercise_id: 'se-a', is_warmup: true }));
+    expect(countExercisesWithoutWorkingSets([seA], sets)).toBe(1);
+  });
+
+  it('ignores deleted (soft-removed) sets when deciding', () => {
+    const sets = setsById(
+      makeSet({ id: 's1', session_exercise_id: 'se-a', is_warmup: false, deleted_at: '2026-01-01T10:00:00.000Z' }),
+    );
+    expect(countExercisesWithoutWorkingSets([seA], sets)).toBe(1);
+  });
+
+  it('returns 0 when every exercise has a working set', () => {
+    const sets = setsById(
+      makeSet({ id: 's1', session_exercise_id: 'se-a', is_warmup: false }),
+      makeSet({ id: 's2', session_exercise_id: 'se-b', is_warmup: false }),
+    );
+    expect(countExercisesWithoutWorkingSets([seA, seB], sets)).toBe(0);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // detectPR
