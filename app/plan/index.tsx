@@ -144,6 +144,9 @@ export default function WeeklyPlanScreen() {
             editMode={editMode}
             onAssign={() => setPickingDay(item.weekday)}
             onClear={() => handleClear(item.weekday)}
+            onOpenRoutine={() =>
+              item.routine && router.push(`/routines/editor?id=${item.routine.id}`)
+            }
             t={t}
           />
         )}
@@ -223,25 +226,31 @@ function WeekdayRow({
   editMode,
   onAssign,
   onClear,
+  onOpenRoutine,
   t,
 }: {
   summary: WeekdaySummary;
   editMode: boolean;
   onAssign: () => void;
   onClear: () => void;
+  onOpenRoutine: () => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
   const hasRoutine = summary.routine !== null;
+  // Normal mode: tapping an assigned day opens its routine editor (TKT-0033).
+  // Edit mode keeps the assign flow. Rest days in normal mode stay inert.
+  const isTappable = editMode || hasRoutine;
+  const handlePress = editMode ? onAssign : hasRoutine ? onOpenRoutine : undefined;
 
   return (
     <Pressable
-      onPress={editMode ? onAssign : undefined}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.dayRow,
         !hasRoutine && styles.dayRowRest,
-        pressed && editMode && { opacity: 0.75 },
+        pressed && isTappable && { opacity: 0.75 },
       ]}
-      accessibilityRole={editMode ? 'button' : 'none'}
+      accessibilityRole={isTappable ? 'button' : 'none'}
       accessibilityLabel={
         editMode
           ? t('weekly_plan.assign_routine')
