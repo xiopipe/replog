@@ -11,7 +11,7 @@
  * dismiss control.
  */
 
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';

@@ -7,7 +7,6 @@
  *   pickForSession=<sessionId>  — session "add exercise" picker
  *   swapSession=<sessionId>&swapSE=<seId> — session "swap exercise" picker
  */
-import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { SearchBar } from '@/components/SearchBar';
 import { EmptyState } from '@/components/EmptyState';
-import { globalExercises$, globalExerciseMuscles$ } from '@/db';
+import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
 import type { EquipmentEnum, MuscleEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';

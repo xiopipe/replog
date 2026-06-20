@@ -9,7 +9,7 @@
  * "Siguiente ejercicio →" or "Finalizar" primary action.
  */
 
-import { useRows, softDelete } from '@/db';
+import { useRows, softDelete , globalExercises$ } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +26,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
-import { globalExercises$ } from '@/db';
 import type { ExerciseRow, FailureMetricEnum, SetRow as SetRowData, UnitEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
