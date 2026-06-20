@@ -12,7 +12,7 @@
  *  - Save validates name + ≥1 exercise
  */
 import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist';
-import { useRows } from '@/db';
+import { useRows , globalExercises$ } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +35,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '@/lib/auth';
-import { globalExercises$ } from '@/db';
 import { colors, spacing, radius, typography, TOUCH_TARGET } from '@/lib/theme';
 import { parseDecimalFloat } from '@/lib/parseDecimal';
 import {

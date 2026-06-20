@@ -1,3 +1,5 @@
+/* eslint-disable import/first -- the jest.mock('@/db') below must run before
+   importing ./queries, which chains to the native data layer at eval time. */
 // queries.ts imports generateId from the @/db barrel, which chains to the whole
 // data layer (supabase → react-native) at load time. The jest env is pure-logic
 // only, so stub the barrel down to the one value queries.ts needs. The pure

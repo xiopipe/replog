@@ -10,7 +10,7 @@
 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { openAndroidDateTime } from '@/lib/datetime-picker';
-import { useRows } from '@/db';
+import { useRows , globalExercises$, globalExerciseMuscles$ } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +27,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { globalExercises$, globalExerciseMuscles$ } from '@/db';
 import type {
   MuscleEnum,
   UnitEnum,

@@ -7,7 +7,7 @@
  * Wireframe: the vault's `04 - Diseno & UX/Mockups/historial.svg`
  */
 
-import { useRows } from '@/db';
+import { useRows , globalExerciseMuscles$ } from '@/db';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +23,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getISOWeek, getISOWeekYear } from 'date-fns';
 
-import { globalExerciseMuscles$ } from '@/db';
 import type { MuscleEnum, WorkoutSessionRow, ExerciseMuscleRow, SessionExerciseRow, SetRow } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';

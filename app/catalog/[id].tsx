@@ -3,7 +3,6 @@
  * Shows the muscle figure, instructions ("How to" tab), and best 1RM card.
  * History tab: past sets for this exercise + best estimated 1RM.
  */
-import { useRows } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { globalExercises$, globalExerciseMuscles$ } from '@/db';
+import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
 import type { SetRow as SetRowData } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';

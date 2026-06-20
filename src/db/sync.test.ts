@@ -1,3 +1,5 @@
+/* eslint-disable import/first -- the jest.mock() calls below must run before
+   importing ./sync, which loads native modules at module-eval time. */
 import { observable } from '@legendapp/state';
 
 // sync.ts pulls in native modules at load time; the jest env is pure-logic only.

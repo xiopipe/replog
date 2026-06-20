@@ -16,10 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useRows } from '@/db';
+import { useRows , globalExercises$ } from '@/db';
 
 import { useAuth } from '@/lib/auth';
-import { globalExercises$ } from '@/db';
 import { colors, spacing, radius, typography, TOUCH_TARGET } from '@/lib/theme';
 import { ALL_TEMPLATES, type TemplateConfig } from '@/features/routines/templates';
 import { createPlanFromTemplate, createPlan } from '@/features/routines/mutations';
