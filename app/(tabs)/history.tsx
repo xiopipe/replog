@@ -266,7 +266,17 @@ export default function HistoryScreen() {
             {t('history.title')}
           </Text>
         </View>
-        <EmptyState message={t('history.empty')} />
+        <EmptyState
+          message={t('history.empty')}
+          primaryAction={{
+            label: t('history.empty_cta_start'),
+            onPress: () => router.navigate('/'),
+          }}
+          secondaryAction={{
+            label: t('history.empty_cta_past'),
+            onPress: () => router.push('/session/retroactive?preset=yesterday'),
+          }}
+        />
       </SafeAreaView>
     );
   }
