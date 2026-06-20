@@ -50,6 +50,8 @@ import {
   removeExerciseFromRoutine,
   updateExerciseTargets,
 } from '@/features/routines/mutations';
+import { getActiveSession } from '@/features/session/queries';
+import { startSessionFromRoutine } from '@/features/session/mutations';
 
 // ---------------------------------------------------------------------------
 // Screen
@@ -66,6 +68,10 @@ export default function RoutineEditorScreen() {
   const rawRoutineExercises = useRows(db?.routineExercises$);
   const globalExercises = useRows(globalExercises$);
   const rawUserExercises = useRows(db?.userExercises$);
+  const rawSessions = useRows(db?.workoutSessions$);
+
+  // TKT-0055: the single in-progress session, if any (invariant: at most one).
+  const activeSession = useMemo(() => getActiveSession(rawSessions ?? {}), [rawSessions]);
 
   // Local state
   const [name, setName] = useState('');
@@ -152,6 +158,49 @@ export default function RoutineEditorScreen() {
       setSaving(false);
     }
   };
+
+  // ---------------------------------------------------------------------------
+  // Start workout from this routine (TKT-0055)
+  // ---------------------------------------------------------------------------
+
+  const handleStartWorkout = useCallback(() => {
+    if (!db || !existingRoutine) return;
+
+    // No exercises → inline prompt to add them before starting.
+    if (exercises.length === 0) {
+      setExerciseError(t('routine_editor.start_needs_exercises'));
+      return;
+    }
+
+    if (activeSession) {
+      if (activeSession.routine_id === existingRoutine.id) {
+        // Same routine already in progress → resume it, no duplicate.
+        router.push(`/session/${activeSession.id}`);
+        return;
+      }
+      // A different routine is in progress → warn; offer to resume it. Invariant:
+      // at most one in_progress session, so we never create a second one here.
+      const activeName =
+        (activeSession.routine_id && rawRoutines?.[activeSession.routine_id]?.name) ||
+        t('routine_editor.start_active_unnamed');
+      Alert.alert(
+        t('routine_editor.start_active_title'),
+        t('routine_editor.start_active_body', { name: activeName }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('routine_editor.start_active_resume'),
+            onPress: () => router.push(`/session/${activeSession.id}`),
+          },
+        ],
+      );
+      return;
+    }
+
+    // No active session → start a fresh one for this routine and open it.
+    const sessionId = startSessionFromRoutine(db, existingRoutine, exercises);
+    router.push(`/session/${sessionId}`);
+  }, [db, existingRoutine, exercises, activeSession, rawRoutines, router, t]);
 
   // ---------------------------------------------------------------------------
   // Drag end — persist new order
@@ -352,6 +401,22 @@ export default function RoutineEditorScreen() {
           activationDistance={10}
         />
       </KeyboardAvoidingView>
+
+      {/* TKT-0055: Start workout CTA — only for an already-saved routine. The
+          editor (name/notes/exercise list) stays fully accessible above it. */}
+      {existingRoutine && (
+        <View style={styles.startBar}>
+          <Pressable
+            onPress={handleStartWorkout}
+            style={({ pressed }) => [styles.startButton, pressed && { opacity: 0.85 }]}
+            accessibilityRole="button"
+            accessibilityLabel={t('routine_editor.start_workout')}
+          >
+            <Ionicons name="barbell" size={20} color={colors.onAccent} />
+            <Text style={styles.startButtonText}>{t('routine_editor.start_workout')}</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Target editor modal */}
       {editingTarget && db && session && (
@@ -628,6 +693,31 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   kav: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  // TKT-0055: Start-workout CTA bar pinned to the thumb zone.
+  startBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    minHeight: TOUCH_TARGET,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+  },
+  startButtonText: {
+    ...typography.label,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.onAccent,
+  },
 
   header: {
     flexDirection: 'row',
