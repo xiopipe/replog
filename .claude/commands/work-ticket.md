@@ -17,7 +17,7 @@ Steps (per the skill — do not skip or reorder):
 7. `git push -u origin ticket/$1-<slug>` (pre-push runs tests).
 8. `gh pr create --base main --head ticket/$1-<slug>` with a clear title/body.
 9. `gh pr merge ticket/$1-<slug> --squash` — **never** `--delete-branch`.
-10. Back on main: `git pull --ff-only`, then `git worktree remove ../replog-trees/$1` + `git worktree prune`. **Keep the branch** (verify it still exists).
+10. **Tear down:** first kill any Metro/Expo dev server this worktree started — `pkill -f "../replog-trees/$1/node_modules/.bin/expo"` (scope to the worktree; never a blanket `pkill expo`) — it pins files and holds port 8081. Then back on main: `git pull --ff-only`, `git worktree remove ../replog-trees/$1` + `git worktree prune`. **Keep the branch** (verify it still exists).
 11. Dispatch `vault-scribe` to mark the ticket `done` (Resolution note + PR link) and update `Tickets/INDEX.md` + `STATE.md`.
 
 Use **pnpm** throughout (never npm/yarn). If anything fails a check, fix the cause — do not bypass hooks. Report: branch name, PR URL, merge result, confirmation the worktree was removed and the branch kept, and the vault update.
