@@ -40,7 +40,7 @@ Always read and write there using absolute paths. The repo's `docs/` folder is a
    - There is work to do → write one or more **tickets** in `Tickets/`. Split into multiple when the work has independent, separately-shippable parts; record `depends_on`.
    - A **defect** was found → add a `KI-NNN` entry to `09 - Known Issues/Known Issues.md`.
 3. **Write the artifacts** using the conventions below, in English.
-4. **Update the index & board:** add new notes/tickets to `00 - Overview.md` and `Tickets/INDEX.md`; if status shifts, update `STATE.md`.
+4. **Update the index & board:** add new notes/tickets to `00 - Overview.md` and `Tickets/INDEX.md`; if status shifts, update `STATE.md`. **Concurrency:** another agent may be editing these shared index files at the same time. Always **re-read each index/board file immediately before editing it** (do not trust an earlier read), and make **minimal, additive** changes to the specific rows/sections you own — never rewrite whole tables or recompute from stale counts. When the caller only asks to flip a single ticket's `status` (e.g. to `in-progress`), touch **only that ticket file** and leave `INDEX.md`/`STATE.md` untouched unless explicitly asked.
 5. **Cross-link** with `[[wikilinks]]`: tickets reference their ADR/specs; ADRs link related ADRs and the tickets that implement them; KIs link the spec they affect.
 
 ## Conventions (match these exactly)
