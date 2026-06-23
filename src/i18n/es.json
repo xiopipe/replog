@@ -24,6 +24,12 @@
     "to_signup": "¿No tienes cuenta? Regístrate",
     "to_login": "¿Ya tienes cuenta? Inicia sesión",
     "logout": "Cerrar sesión",
+    "create_account_cta": "Crear cuenta",
+    "sign_in_cta": "Iniciar sesión",
+    "guest_display_name": "Usuario invitado",
+    "guest_signout_warning": "Si cierras sesión sin crear una cuenta, no podrás recuperar tus datos en este dispositivo.",
+    "guest_signout_confirm": "Cerrar sesión de todas formas",
+    "guest_signout_cancel": "Cancelar",
     "error_invalid_credentials": "Correo o contraseña incorrectos.",
     "error_signup_failed": "No se pudo crear la cuenta.",
     "check_email": "Revisa tu correo para confirmar la cuenta."

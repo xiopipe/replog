@@ -79,7 +79,7 @@ function OnboardingGate({ userId }: OnboardingGateProps) {
 // ---------------------------------------------------------------------------
 
 function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { initializing, cloudUid } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -91,12 +91,18 @@ function RootNavigator() {
     if (initializing) return;
     const inAuthGroup = segments[0] === '(auth)';
 
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
+    // TKT-0067: The app is always accessible with a local uid — no forced redirect
+    // to login on first launch. Only redirect to login when the user is ALREADY in
+    // the auth group with a cloud session (they've signed in) or when explicitly
+    // navigating away from the auth group after signing in.
+    //
+    // We never redirect unauthenticated users to login — they use the local uid.
+    if (cloudUid && inAuthGroup) {
+      // User signed in — take them to the app.
       router.replace('/(tabs)');
     }
-  }, [session, initializing, segments, router]);
+    // Note: no redirect for !cloudUid — local-only users stay in the app.
+  }, [cloudUid, initializing, segments, router]);
 
   if (initializing) {
     return (
@@ -132,12 +138,16 @@ function RootNavigator() {
 
       {/*
        * TKT-0043: Post-register onboarding modal (overlay, not a route).
-       * The `key` prop equals the user id so the gate remounts automatically
-       * when the user signs out and a different user signs in — resetting its
-       * session-scoped `dismissed` state without any useEffect setState.
+       * The `key` prop equals the active user id so the gate remounts
+       * automatically when the user signs out and a different user signs in —
+       * resetting its session-scoped `dismissed` state without any useEffect
+       * setState.
+       *
+       * TKT-0067: Only show onboarding for cloud users (anonymous or permanent)
+       * who have a real Supabase profile row. Local-only users skip it.
        */}
-      {session?.user?.id ? (
-        <OnboardingGate key={session.user.id} userId={session.user.id} />
+      {cloudUid ? (
+        <OnboardingGate key={cloudUid} userId={cloudUid} />
       ) : null}
     </View>
   );
