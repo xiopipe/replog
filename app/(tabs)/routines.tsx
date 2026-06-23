@@ -19,6 +19,7 @@ import { Screen } from '@/components/Screen';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { getActivePlan, getRoutines, getWeekdaySummaries } from '@/features/routines/queries';
+import { estimatedDurationMinutes, formatEstimatedDuration } from '@/lib/estimatedDuration';
 import type { RoutineRow } from '@/db';
 
 export default function RoutinesScreen() {
@@ -30,6 +31,8 @@ export default function RoutinesScreen() {
   const rawPlans = useRows(db?.plans$);
   const rawPlanDays = useRows(db?.planDays$);
   const rawRoutineExercises = useRows(db?.routineExercises$);
+  // TKT-0031: sessions needed for duration estimation
+  const rawSessions = useRows(db?.workoutSessions$);
 
   const activePlan = useMemo(() => getActivePlan(rawPlans ?? {}), [rawPlans]);
   const routines = useMemo(() => getRoutines(rawRoutines ?? {}), [rawRoutines]);
@@ -58,6 +61,16 @@ export default function RoutinesScreen() {
   const getExerciseCount = useCallback(
     (routineId: string): number => exerciseCountMap.get(routineId) ?? 0,
     [exerciseCountMap],
+  );
+
+  // TKT-0031: derive estimated duration per routine
+  const getEstimatedDuration = useCallback(
+    (routineId: string): string => {
+      const count = exerciseCountMap.get(routineId) ?? 0;
+      const mins = estimatedDurationMinutes(routineId, rawSessions ?? {}, count);
+      return formatEstimatedDuration(mins);
+    },
+    [exerciseCountMap, rawSessions],
   );
 
   return (
@@ -136,6 +149,7 @@ export default function RoutinesScreen() {
           <RoutineListItem
             routine={item}
             exerciseCount={getExerciseCount(item.id)}
+            estimatedDuration={getEstimatedDuration(item.id)}
             onPress={() => router.push(`/routines/editor?id=${item.id}`)}
             t={t}
           />
@@ -177,11 +191,13 @@ function WeekdayStrip({
 function RoutineListItem({
   routine,
   exerciseCount,
+  estimatedDuration,
   onPress,
   t,
 }: {
   routine: RoutineRow;
   exerciseCount: number;
+  estimatedDuration: string;
   onPress: () => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }) {
@@ -198,6 +214,8 @@ function RoutineListItem({
         </Text>
         <Text style={styles.routineCount}>
           {t('routines.exercises_count', { count: exerciseCount })}
+          {'  '}
+          <Text style={styles.routineDuration}>{estimatedDuration}</Text>
         </Text>
       </View>
       <Text style={styles.routineChevron}>{'›'}</Text>
@@ -344,6 +362,11 @@ const styles = StyleSheet.create({
   routineCount: {
     ...typography.label,
     color: colors.textSecondary,
+    fontSize: 12,
+  },
+  routineDuration: {
+    ...typography.label,
+    color: colors.textTertiary,
     fontSize: 12,
   },
   routineChevron: {

@@ -63,6 +63,7 @@ import {
   groupSetsAsDropset,
   finishSession,
   setActiveTime,
+  reorderSessionExercises,
 } from '@/features/session/mutations';
 import { isSessionStale } from '@/features/session/activeTime';
 import { useActiveSessionTimer } from '@/features/session/useActiveSessionTimer';
@@ -75,6 +76,7 @@ import { SetRow } from '@/features/session/SetRow';
 import { formatWeight } from '@/features/session/weight-format';
 import { PRBadge, type PRType } from '@/features/session/PRBadge';
 import { RoutineTargetChip } from '@/features/session/RoutineTargetChip';
+import { ReorderExercisesModal, type ReorderItem } from '@/features/session/ReorderExercisesModal';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,6 +128,9 @@ export default function ActiveSessionScreen() {
 
   // ── Exercise action menu ──────────────────────────────────────────────────
   const [menuVisible, setMenuVisible] = useState(false);
+
+  // ── TKT-0020: reorder exercises modal ────────────────────────────────────
+  const [reorderVisible, setReorderVisible] = useState(false);
 
   // ── Derive data ───────────────────────────────────────────────────────────
   const currentSession = useMemo(
@@ -216,6 +221,16 @@ export default function ActiveSessionScreen() {
   );
 
   const currentExercise = currentSE ? (allExercises[currentSE.exercise_id] ?? null) : null;
+
+  // TKT-0020: items for the reorder modal (SE rows + resolved exercise names)
+  const reorderItems = useMemo<ReorderItem[]>(
+    () =>
+      sessionExercises.map((se) => ({
+        se,
+        exercise: allExercises[se.exercise_id] ?? null,
+      })),
+    [sessionExercises, allExercises],
+  );
 
   // Profile preferences
   const userUnit: UnitEnum = useMemo(
@@ -537,6 +552,18 @@ export default function ActiveSessionScreen() {
 
   const showMenu = useCallback(() => setMenuVisible(true), []);
 
+  // TKT-0020: confirm reorder → batch update order_index
+  const handleReorderConfirm = useCallback(
+    (orderedIds: string[]) => {
+      if (!db) return;
+      reorderSessionExercises(db, orderedIds);
+      setReorderVisible(false);
+    },
+    [db],
+  );
+
+  const handleReorderCancel = useCallback(() => setReorderVisible(false), []);
+
   const menuOptions = useMemo(
     () => [
       { label: t('session.menu_add_exercise'), onPress: () => handleMenuAction(0) },
@@ -544,6 +571,8 @@ export default function ActiveSessionScreen() {
       { label: t('session.menu_skip_exercise'), onPress: () => handleMenuAction(2), destructive: true },
       { label: t('session.menu_group_superset'), onPress: () => handleMenuAction(3) },
       { label: t('session.menu_group_dropset'), onPress: () => handleMenuAction(4) },
+      // TKT-0020: reorder exercises
+      { label: t('session.menu_reorder_exercises'), onPress: () => setReorderVisible(true) },
     ],
     [t, handleMenuAction],
   );
@@ -641,6 +670,14 @@ export default function ActiveSessionScreen() {
         title={t('session.exercise_menu_title')}
         options={menuOptions}
         onClose={() => setMenuVisible(false)}
+      />
+
+      {/* TKT-0020: reorder exercises modal */}
+      <ReorderExercisesModal
+        visible={reorderVisible}
+        items={reorderItems}
+        onConfirm={handleReorderConfirm}
+        onCancel={handleReorderCancel}
       />
 
       {/* TKT-0011: stale-session recovery prompt */}

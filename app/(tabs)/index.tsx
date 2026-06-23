@@ -9,15 +9,23 @@
  *   context chip (routine name + relative start time, day label if different day).
  *   No duplicate resume controls anywhere on the screen.
  *
+ * TKT-0031: Show estimated duration on today's routine card.
+ *
+ * TKT-0053: Rest-day CTA "Empezar entreno libre" → routine picker sheet →
+ *   starts session from selected routine.
+ *
+ * TKT-0058: CTA zone anchored to the lower third via flex:1 spacer between
+ *   content and CTA, so the button never floats mid-screen.
+ *
  * States:
  *  - No active plan → CTA to choose a template
  *  - Active plan + today's routine + no session → big "Empezar" CTA
- *  - Active plan + today = rest + no session → rest card + secondary "Empezar libre"
+ *  - Active plan + today = rest + no session → rest card + primary "Empezar libre"
  *  - In-progress session (any case) → single "Reanudar" + context chip
  */
 import { useRows } from '@/db';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -34,12 +42,14 @@ import { colors, spacing, typography, TOUCH_TARGET, radius, routinePalette } fro
 import { abbreviateRoutine, routineColorMap } from '@/features/routines/routine-label';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { getActivePlan, getWeekdaySummaries } from '@/features/routines/queries';
+import { getActivePlan, getWeekdaySummaries, getRoutines } from '@/features/routines/queries';
 import { getActiveSession } from '@/features/session/queries';
 import {
   startSessionFromRoutine,
   repeatLastSession,
 } from '@/features/session/mutations';
+import { estimatedDurationMinutes, formatEstimatedDuration } from '@/lib/estimatedDuration';
+import { RoutinePickerSheet } from '@/features/routines/RoutinePickerSheet';
 import type { RoutineRow, RoutineExerciseRow, WorkoutSessionRow } from '@/db';
 
 // ---------------------------------------------------------------------------
@@ -147,6 +157,9 @@ export default function HomeScreen() {
   const rawRoutineExercises = useRows(db?.routineExercises$);
   const rawSessions = useRows(db?.workoutSessions$);
 
+  // TKT-0053: routine picker sheet visibility
+  const [pickerVisible, setPickerVisible] = useState(false);
+
   const isLoading = !db;
 
   const activePlan = useMemo(() => getActivePlan(rawPlans ?? {}), [rawPlans]);
@@ -190,6 +203,20 @@ export default function HomeScreen() {
     return routine?.name ?? null;
   }, [activeSession, rawRoutines]);
 
+  // TKT-0053: all non-deleted routines for the picker
+  const allRoutines = useMemo(
+    () => getRoutines(rawRoutines ?? {}),
+    [rawRoutines],
+  );
+
+  // TKT-0031: estimated duration for today's routine
+  const todayEstimatedDuration = useMemo(() => {
+    const todayRoutine = todaySummary?.routine;
+    if (!todayRoutine) return null;
+    const exerciseCount = todaySummary?.exerciseCount ?? 0;
+    return estimatedDurationMinutes(todayRoutine.id, rawSessions ?? {}, exerciseCount);
+  }, [todaySummary, rawSessions]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleResumeSession = () => {
@@ -211,12 +238,21 @@ export default function HomeScreen() {
     router.push(`/session/${sessionId}`);
   };
 
-  const handleStartUnplanned = () => {
+  // TKT-0053: open routine picker for free workout on rest day
+  const handleStartFreeWorkout = () => {
     if (!db || !session?.user?.id || activeSession) return;
-    // Start an unplanned session: repeatLastSession creates a blank session if
-    // there is no history, or repeats the last one. For an unplanned free
-    // workout we navigate to retroactive creation flow instead.
-    router.push('/session/retroactive');
+    setPickerVisible(true);
+  };
+
+  // TKT-0053: user selected a routine from the picker
+  const handlePickerSelect = (routine: RoutineRow) => {
+    setPickerVisible(false);
+    if (!db || !session?.user?.id) return;
+    const routineExercises: RoutineExerciseRow[] = Object.values(rawRoutineExercises ?? {}).filter(
+      (re) => re.routine_id === routine.id && !re.deleted_at,
+    );
+    const sessionId = startSessionFromRoutine(db, routine, routineExercises);
+    router.push(`/session/${sessionId}`);
   };
 
   const handleRepeatLast = () => {
@@ -244,50 +280,54 @@ export default function HomeScreen() {
   if (!activePlan) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <View style={styles.greetingRow}>
-            {displayName ? (
-              <Text style={styles.greeting}>
-                {t('home.greeting')}, {displayName}
-              </Text>
-            ) : null}
-          </View>
-          <Text style={styles.headline}>{t('home.no_plan_title')}</Text>
-          <Text style={styles.noPlanSub}>{t('home.no_plan_cta')}</Text>
-          <Button
-            label={t('home.choose_template')}
-            onPress={() => router.push('/plan/templates')}
-            style={styles.ctaBtn}
-          />
-
-          {/* Resume active session (even without a plan) — single instance */}
-          {activeSession ? (
-            <View style={styles.resumeBlock}>
-              <Pressable
-                onPress={handleResumeSession}
-                style={styles.resumeBtn}
-                accessibilityRole="button"
-                accessibilityLabel={t('home.resume_workout')}
-              >
-                <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
-              </Pressable>
-              <InProgressChip
-                session={activeSession}
-                routineName={activeSessionRoutineName}
-                todayIndex={todayIndex}
-              />
+        <View style={styles.container}>
+          <ScrollView contentContainerStyle={styles.scroll}>
+            <View style={styles.greetingRow}>
+              {displayName ? (
+                <Text style={styles.greeting}>
+                  {t('home.greeting')}, {displayName}
+                </Text>
+              ) : null}
             </View>
-          ) : null}
+            <Text style={styles.headline}>{t('home.no_plan_title')}</Text>
+            <Text style={styles.noPlanSub}>{t('home.no_plan_cta')}</Text>
+          </ScrollView>
 
-          <Pressable
-            onPress={() => router.push('/session/retroactive')}
-            style={styles.retroButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.retroactive')}
-          >
-            <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
-          </Pressable>
-        </ScrollView>
+          {/* TKT-0058: CTA anchored to bottom via flex spacer above */}
+          <View style={styles.ctaAnchor}>
+            {activeSession ? (
+              <View style={styles.resumeBlock}>
+                <Pressable
+                  onPress={handleResumeSession}
+                  style={styles.resumeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.resume_workout')}
+                >
+                  <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+                </Pressable>
+                <InProgressChip
+                  session={activeSession}
+                  routineName={activeSessionRoutineName}
+                  todayIndex={todayIndex}
+                />
+              </View>
+            ) : (
+              <Button
+                label={t('home.choose_template')}
+                onPress={() => router.push('/plan/templates')}
+                style={styles.ctaBtn}
+              />
+            )}
+            <Pressable
+              onPress={() => router.push('/session/retroactive')}
+              style={styles.retroButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.retroactive')}
+            >
+              <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
+            </Pressable>
+          </View>
+        </View>
       </SafeAreaView>
     );
   }
@@ -300,67 +340,91 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Greeting */}
-        {displayName ? (
-          <Text style={styles.greeting}>
-            {t('home.greeting')}, {displayName}
-          </Text>
-        ) : null}
-        <Text style={styles.headline}>
-          {todayHasRoutine ? t('home.today_trains') : t('home.today_rest')}
-        </Text>
+      {/* TKT-0053: routine picker sheet */}
+      <RoutinePickerSheet
+        visible={pickerVisible}
+        routines={allRoutines}
+        onSelect={handlePickerSelect}
+        onCancel={() => setPickerVisible(false)}
+        onCreateRoutine={() => router.push('/(tabs)/routines')}
+      />
 
-        {/* Weekly strip */}
-        <WeeklyStrip weekdays={weekdays} todayIndex={todayIndex} t={t} />
-
-        {/* Today's routine card — info only, no CTA button inside */}
-        {todayHasRoutine && todayRoutine ? (
-          <Card style={styles.routineCard}>
-            <Text style={styles.routineCardLabel}>{t('home.todays_routine')}</Text>
-            <Text style={styles.routineCardName}>{todayRoutine.name}</Text>
-            <Text style={styles.routineCardMeta}>
-              {t('home.exercises_count', { count: todayExerciseCount })}
+      {/*
+       * TKT-0058: flex layout — scrollable content + flex:1 spacer + anchored CTA.
+       * The outer View is flex:1 (column). ScrollView takes as much space as its
+       * content needs; the spacer fills remaining void; CTA stays pinned at bottom.
+       */}
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {/* Greeting */}
+          {displayName ? (
+            <Text style={styles.greeting}>
+              {t('home.greeting')}, {displayName}
             </Text>
-          </Card>
-        ) : (
-          <Card style={styles.restCard}>
-            <Text style={styles.restCardText}>{t('home.today_rest_card_title')}</Text>
-            <Text style={styles.restCardSub}>{t('home.today_rest_cta')}</Text>
-          </Card>
-        )}
+          ) : null}
+          <Text style={styles.headline}>
+            {todayHasRoutine ? t('home.today_trains') : t('home.today_rest')}
+          </Text>
 
-        {/* Repeat last workout — only when no session is in progress */}
-        {hasCompletedSession && !activeSession ? (
+          {/* Weekly strip */}
+          <WeeklyStrip weekdays={weekdays} todayIndex={todayIndex} t={t} />
+
+          {/* Today's routine card — TKT-0031: includes estimated duration */}
+          {todayHasRoutine && todayRoutine ? (
+            <Card style={styles.routineCard}>
+              <Text style={styles.routineCardLabel}>{t('home.todays_routine')}</Text>
+              <Text style={styles.routineCardName}>{todayRoutine.name}</Text>
+              <Text style={styles.routineCardMeta}>
+                {t('home.exercises_count', { count: todayExerciseCount })}
+                {'  '}
+                <Text style={styles.routineCardDuration}>
+                  {formatEstimatedDuration(todayEstimatedDuration)}
+                </Text>
+              </Text>
+            </Card>
+          ) : (
+            <Card style={styles.restCard}>
+              <Text style={styles.restCardText}>{t('home.today_rest_card_title')}</Text>
+              <Text style={styles.restCardSub}>{t('home.today_rest_cta')}</Text>
+            </Card>
+          )}
+
+          {/* Repeat last workout — only when no session is in progress */}
+          {hasCompletedSession && !activeSession ? (
+            <Pressable
+              onPress={handleRepeatLast}
+              style={styles.repeatButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('home.repeat_last')}
+            >
+              <Text style={styles.repeatButtonText}>{t('home.repeat_last')}</Text>
+            </Pressable>
+          ) : null}
+
+          {/* Retroactive logging */}
           <Pressable
-            onPress={handleRepeatLast}
-            style={styles.repeatButton}
+            onPress={() => router.push('/session/retroactive')}
+            style={styles.retroButton}
             accessibilityRole="button"
-            accessibilityLabel={t('home.repeat_last')}
+            accessibilityLabel={t('home.retroactive')}
           >
-            <Text style={styles.repeatButtonText}>{t('home.repeat_last')}</Text>
+            <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
           </Pressable>
-        ) : null}
+        </ScrollView>
 
-        {/* Retroactive logging */}
-        <Pressable
-          onPress={() => router.push('/session/retroactive')}
-          style={styles.retroButton}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.retroactive')}
-        >
-          <Text style={styles.retroButtonText}>{t('home.retroactive')}</Text>
-        </Pressable>
-
-        {/* ── Primary CTA zone (thumb zone) ─────────────────────────────────
+        {/*
+         * TKT-0058: Anchored CTA zone.
+         * Lives OUTSIDE the ScrollView so it stays fixed at the bottom.
+         * A flex:1 spacer is NOT needed here because the outer View is flex:1
+         * and this View is placed after the ScrollView — it naturally sits at
+         * the bottom of the remaining space.
          *
-         * TKT-0010 + TKT-0013: exactly ONE action in the lower CTA area.
-         *
-         * Case A – session in progress: single "Reanudar" + context chip.
+         * TKT-0010 + TKT-0013: exactly ONE action.
+         * Case A – session in progress: "Reanudar" + context chip.
          * Case B – no session + today has routine: large "Empezar entreno".
-         * Case C – no session + today is rest: secondary "Empezar libre".
+         * Case C – no session + today is rest: primary "Empezar entreno libre" (TKT-0053).
          */}
-        <View style={styles.ctaZone}>
+        <View style={styles.ctaAnchor}>
           {activeSession ? (
             /* Case A — Resume */
             <View style={styles.resumeBlock}>
@@ -389,18 +453,18 @@ export default function HomeScreen() {
               <Text style={styles.startBtnText}>{t('home.start_workout')}</Text>
             </Pressable>
           ) : (
-            /* Case C — Start unplanned (rest day) */
+            /* Case C — Start free workout (rest day) — TKT-0053 */
             <Pressable
-              onPress={handleStartUnplanned}
-              style={styles.startBtnSecondary}
+              onPress={handleStartFreeWorkout}
+              style={styles.startBtn}
               accessibilityRole="button"
-              accessibilityLabel={t('home.start_unplanned')}
+              accessibilityLabel={t('home.start_free_workout')}
             >
-              <Text style={styles.startBtnSecondaryText}>{t('home.start_unplanned')}</Text>
+              <Text style={styles.startBtnText}>{t('home.start_free_workout')}</Text>
             </Pressable>
           )}
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -479,12 +543,18 @@ function WeeklyStrip({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  // TKT-0058: outer container — column flex, fills safe area
+  container: {
+    flex: 1,
+  },
+
   scroll: {
     padding: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.md,
     gap: spacing.lg,
-    flexGrow: 1,
   },
+
   greetingRow: { gap: 2 },
   greeting: {
     ...typography.label,
@@ -569,6 +639,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
+  // TKT-0031: duration label inside the meta line
+  routineCardDuration: {
+    ...typography.label,
+    color: colors.textTertiary,
+    fontSize: 12,
+  },
 
   // Rest card
   restCard: {
@@ -616,11 +692,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // ── CTA zone (thumb zone, lower section) ──────────────────────────────────
-
-  ctaZone: {
-    marginTop: spacing.md,
+  // ── TKT-0058: Anchored CTA zone (thumb zone) ──────────────────────────────
+  // Sits BELOW the ScrollView in the flex column — naturally pinned at bottom.
+  ctaAnchor: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
     gap: spacing.sm,
+    backgroundColor: colors.background,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
 
   // Primary start button — ≥56dp, near-full-width (TKT-0010)
@@ -637,23 +718,6 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 17,
     fontWeight: '600',
-  },
-
-  // Secondary CTA for rest days
-  startBtnSecondary: {
-    minHeight: 56,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  startBtnSecondaryText: {
-    ...typography.section,
-    color: colors.textPrimary,
-    fontSize: 17,
   },
 
   // Resume block — single CTA + context chip (TKT-0013)

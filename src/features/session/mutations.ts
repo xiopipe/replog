@@ -810,6 +810,35 @@ export function updateSessionDuration(
 }
 
 // ---------------------------------------------------------------------------
+// TKT-0020: Mid-session exercise reorder
+// ---------------------------------------------------------------------------
+
+/**
+ * Batch-update order_index for all session_exercise rows to match a new
+ * ordering supplied as an ordered array of IDs.
+ *
+ * Runs all writes in a single synchronous batch so Legend-State / MMKV
+ * never sees a partial re-order.
+ *
+ * @param db              UserObservables context.
+ * @param orderedIds      Array of session_exercise IDs in the desired order
+ *                        (index 0 = first exercise displayed).
+ */
+export function reorderSessionExercises(
+  db: UserObservables,
+  orderedIds: string[],
+): void {
+  const now = new Date().toISOString();
+  orderedIds.forEach((id, idx) => {
+    (db.sessionExercises$ as any)[id].set((prev: SessionExerciseRow) => ({
+      ...prev,
+      order_index: idx,
+      updated_at: now,
+    }));
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Active session guard
 // ---------------------------------------------------------------------------
 
