@@ -182,7 +182,8 @@ export default function ActiveSessionScreen() {
       commitNow();
       setActiveTime(db, sessionId, Math.max(1, Math.floor(seconds)));
       finishSession(db, sessionId);
-      router.replace(`/session/summary/${sessionId}`);
+      // TKT-0030: pass `edit=1` so summary pre-focuses the duration field.
+      router.replace(`/session/summary/${sessionId}?edit=1`);
     },
     [db, sessionId, commitNow, router],
   );
