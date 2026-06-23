@@ -117,10 +117,16 @@ const RETRY = { infinite: true, backoff: 'exponential', maxDelay: 30_000 } as co
  * True for sync failures that are EXPECTED during a write cascade and will heal
  * on the next backoff retry once the parent row syncs — they must not be logged
  * at `error` level (that triggers the dev LogBox red overlay and looks like a
- * crash). A foreign-key violation is the canonical case.
+ * crash). A foreign-key violation is the canonical case (KI-001).
+ *
+ * Network-unavailable errors are also suppressed from the error log because
+ * the app is offline-first: losing connectivity is expected and surfaced via
+ * the OfflineBanner (TKT-0048) rather than a red error overlay.
  */
 function isTransientSyncError(message: string): boolean {
-  return /violates foreign key constraint/i.test(message);
+  if (/violates foreign key constraint/i.test(message)) return true;
+  if (/network request failed|failed to fetch|network error|no internet|offline|econnrefused|enotfound/i.test(message)) return true;
+  return false;
 }
 
 /**
