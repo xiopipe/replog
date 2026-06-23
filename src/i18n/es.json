@@ -344,7 +344,18 @@
     "stale_duration_label": "Minutos",
     "stale_duration_a11y_label": "Ingresa la duración del entreno en minutos",
     "stale_duration_placeholder": "Minutos",
-    "stale_duration_confirm": "Finalizar entreno"
+    "stale_duration_confirm": "Finalizar entreno",
+    "rir_unset_a11y": "RIR o RPE no establecido",
+    "rir_guide_a11y": "Guía de equivalencia RIR/RPE",
+    "rir_guide_title": "Equivalencia RIR / RPE",
+    "rir_guide_body": "RPE 10 = 0 RIR (al fallo absoluto)\nRPE 9 = 1 RIR (1 rep en reserva)\nRPE 8 = 2 RIR (2 reps en reserva)\nRPE 7 = 3 RIR (3 reps en reserva)\nRPE 6 = 4 RIR (4 reps en reserva)\nRPE 5 = 5 RIR (5+ reps en reserva)\n\nRIR (Repeticiones en Reserva): cuántas repeticiones más podrías haber hecho.\nRPE (Esfuerzo Percibido): escala del 1 al 10.",
+    "target_prefix": "Objetivo:",
+    "target_sets_unit": "series",
+    "target_a11y": "Objetivo de la rutina: {{label}}",
+    "target_met": "Objetivo alcanzado",
+    "duplicate_same": "Igual",
+    "duplicate_plus_rep": "+1 rep",
+    "duplicate_plus_weight": "+peso (2.5 kg)"
   },
   "duration": {
     "hours_minutes": "{{h}} h {{m}} m",

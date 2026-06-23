@@ -7,26 +7,37 @@
  * Inline set rows. ⋮ menu for add/swap/skip/superset/dropset.
  * PR micro-celebration on confirming a working set.
  * "Siguiente ejercicio →" or "Finalizar" primary action.
+ *
+ * TKT-0017: Routine target ghost reference chip near exercise header.
+ * TKT-0019: Auto-advance focus between fields (handled inside SetRow).
+ * TKT-0026: Long-press "Duplicate" offers same/+rep/+weight variants.
+ * TKT-0050: Haptics on set confirm + PR; keep-awake during active session.
+ * TKT-0059: Two-panel layout — scrollable history top, pinned active-row bottom.
  */
 
-import { useRows, softDelete , globalExercises$ } from '@/db';
+import { useRows, softDelete, globalExercises$ } from '@/db';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
-import type { ExerciseRow, FailureMetricEnum, SetRow as SetRowData, UnitEnum } from '@/db';
+import type { ExerciseRow, FailureMetricEnum, RoutineExerciseRow, SetRow as SetRowData, UnitEnum } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 
@@ -57,15 +68,13 @@ import { isSessionStale } from '@/features/session/activeTime';
 import { useActiveSessionTimer } from '@/features/session/useActiveSessionTimer';
 
 import { ActionMenu } from '@/components/ActionMenu';
-// SessionTimer = per-exercise timer (wall-clock time-on-current-exercise, kept
-// intentionally — see TKT-0011 out-of-scope). formatMmSs renders the session
-// timer, which now uses real active time (displaySeconds), not wall-clock.
 import { SessionTimer, formatMmSs } from '@/features/session/SessionTimer';
 import { StaleSessionModal } from '@/features/session/StaleSessionModal';
 import { ExercisePager } from '@/features/session/ExercisePager';
 import { SetRow } from '@/features/session/SetRow';
 import { formatWeight } from '@/features/session/weight-format';
 import { PRBadge, type PRType } from '@/features/session/PRBadge';
+import { RoutineTargetChip } from '@/features/session/RoutineTargetChip';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -88,6 +97,7 @@ export default function ActiveSessionScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
 
   const { db, session } = useAuth();
   const userId = session?.user?.id ?? '';
@@ -97,6 +107,7 @@ export default function ActiveSessionScreen() {
   const rawSessionExercises = useRows(db?.sessionExercises$);
   const rawSets = useRows(db?.sets$);
   const rawProfiles = useRows(db?.profiles$);
+  const rawRoutineExercises = useRows(db?.routineExercises$);
   const globalExercises = useRows(globalExercises$);
   const rawUserExercises = useRows(db?.userExercises$);
 
@@ -131,9 +142,27 @@ export default function ActiveSessionScreen() {
     isActive: sessionIsActive,
   });
 
-  // ── TKT-0011: stale-session recovery prompt (reopened after a long gap) ────
-  // Derived (no setState-in-effect): capture "now" once at mount, then show the
-  // prompt while it is detected and not yet dismissed.
+  // ── TKT-0050: keep-awake while session is active ──────────────────────────
+  useEffect(() => {
+    if (!sessionIsActive) return;
+    activateKeepAwakeAsync().catch(() => { /* best-effort */ });
+
+    // Also deactivate on background transition
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') {
+        deactivateKeepAwake();
+      } else if (state === 'active') {
+        activateKeepAwakeAsync().catch(() => { /* best-effort */ });
+      }
+    });
+
+    return () => {
+      deactivateKeepAwake();
+      sub.remove();
+    };
+  }, [sessionIsActive]);
+
+  // ── TKT-0011: stale-session recovery prompt ────────────────────────────────
   const [mountNow] = useState(() => Date.now());
   const [staleDismissed, setStaleDismissed] = useState(false);
   const staleModalVisible =
@@ -150,10 +179,7 @@ export default function ActiveSessionScreen() {
     (seconds: number) => {
       setStaleDismissed(true);
       if (!db || !sessionId) return;
-      commitNow(); // stop the in-flight segment so unmount does not re-add time
-      // The user's entry is authoritative — even "0 min". Clamp to >= 1s so
-      // accumulated_active_seconds stays > 0 and the summary never falls back to
-      // the wall-clock (started_at→ended_at) duration we are trying to override.
+      commitNow();
       setActiveTime(db, sessionId, Math.max(1, Math.floor(seconds)));
       finishSession(db, sessionId);
       router.replace(`/session/summary/${sessionId}`);
@@ -200,7 +226,7 @@ export default function ActiveSessionScreen() {
     [rawProfiles, userId],
   );
 
-  // ── TKT-0014: Last session sets for the current exercise (prefill + "last time" line) ─────────
+  // ── TKT-0014: Last session sets ───────────────────────────────────────────
   const lastSessionSets = useMemo(() => {
     if (!rawSets || !rawSessionExercises || !rawSessions || !currentSE) return [];
     return getLastSetsForExercise(
@@ -212,8 +238,22 @@ export default function ActiveSessionScreen() {
     );
   }, [rawSets, rawSessionExercises, rawSessions, currentSE, sessionId]);
 
-  // The first working set from the last session is the prefill reference.
   const lastSessionFirstSet = lastSessionSets[0] ?? null;
+
+  // ── TKT-0017: Routine target for current exercise ─────────────────────────
+  const routineExerciseForCurrent = useMemo<RoutineExerciseRow | null>(() => {
+    if (!currentSession?.routine_id || !rawRoutineExercises || !currentSE) return null;
+    const allRE = Object.values(rawRoutineExercises);
+    // Match by routine_id AND exercise_id
+    return (
+      allRE.find(
+        (re) =>
+          re.routine_id === currentSession.routine_id &&
+          re.exercise_id === currentSE.exercise_id &&
+          !re.deleted_at,
+      ) ?? null
+    );
+  }, [currentSession, rawRoutineExercises, currentSE]);
 
   // ── Confirm set with PR detection ─────────────────────────────────────────
   const handleConfirmSet = useCallback(
@@ -222,8 +262,9 @@ export default function ActiveSessionScreen() {
 
       updateSet(db, setId, patch);
 
-      // Build the merged candidate with locally computed weight_kg so PR
-      // detection never reads the stale snapshot (which may still be null).
+      // TKT-0050: haptic on set confirm
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { /* best-effort */ });
+
       const existing = rawSets?.[setId] ?? ({} as Partial<SetRowData>);
       const mergedWeightValue = 'weight_value' in patch ? patch.weight_value : existing.weight_value;
       const mergedWeightUnit = 'weight_unit' in patch ? patch.weight_unit : existing.weight_unit;
@@ -232,7 +273,6 @@ export default function ActiveSessionScreen() {
           ? toCanonicalKg(mergedWeightValue, mergedWeightUnit as 'kg' | 'lb')
           : (existing.weight_kg ?? null);
 
-      // Reflect current is_warmup: patch wins, else read latest snapshot
       const currentIsWarmup =
         patch.is_warmup !== undefined ? patch.is_warmup : (rawSets?.[setId]?.is_warmup ?? false);
 
@@ -243,7 +283,6 @@ export default function ActiveSessionScreen() {
         is_warmup: currentIsWarmup,
       } as SetRowData;
 
-      // PR detection — only for working sets
       if (!updatedSet.is_warmup && updatedSet.reps && updatedSet.weight_kg != null) {
         const history = getExerciseHistorySets(
           rawSets ?? {},
@@ -254,11 +293,8 @@ export default function ActiveSessionScreen() {
         const { is1RM, isRepPR } = detectPR(updatedSet, history);
         if (is1RM || isRepPR) {
           const weightDisplay = formatWeight(updatedSet, userUnit);
-
-          // TKT-0027: Determine which PR type to display (prefer 1RM).
           const resolvedPrType: PRType = is1RM ? '1rm' : 'rep';
 
-          // Compute e1RM delta for 1RM PRs
           let delta: number | null = null;
           if (is1RM && updatedSet.weight_kg != null && updatedSet.reps) {
             const currentE1RM = estimated1RM(updatedSet.weight_kg, updatedSet.reps);
@@ -273,6 +309,9 @@ export default function ActiveSessionScreen() {
               delta = userUnit === 'lb' ? kgToLb(deltaKg) : deltaKg;
             }
           }
+
+          // TKT-0050: haptic on PR
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => { /* best-effort */ });
 
           setPrInfo({
             exerciseName: currentExercise?.name ?? '',
@@ -292,9 +331,6 @@ export default function ActiveSessionScreen() {
     if (!db || !currentSE) return;
 
     const lastSet = currentSets[currentSets.length - 1];
-
-    // TKT-0014: If this exercise has no sets yet in the current session,
-    // prefill from the last completed session instead of an empty set.
     const workingSetsInSession = currentSets.filter((s) => !s.is_warmup);
     const prefillSource =
       workingSetsInSession.length === 0 ? lastSessionFirstSet : lastSet;
@@ -328,7 +364,7 @@ export default function ActiveSessionScreen() {
     });
   }, [db, currentSE, currentSets, userId, userUnit]);
 
-  // ── Duplicate last set ────────────────────────────────────────────────────
+  // ── TKT-0026: Duplicate set (plain) ──────────────────────────────────────
   const handleDuplicateSet = useCallback(() => {
     if (!db || !currentSE) return;
     const lastSet = currentSets[currentSets.length - 1];
@@ -339,12 +375,68 @@ export default function ActiveSessionScreen() {
     duplicateSet(db, lastSet);
   }, [db, currentSE, currentSets, handleAddSet]);
 
+  // ── TKT-0026: Duplicate with increment (long-press variants) ─────────────
+  const handleDuplicateVariant = useCallback(
+    (weightDelta: number, repsDelta: number) => {
+      if (!db || !currentSE) return;
+      const lastSet = currentSets[currentSets.length - 1];
+      if (!lastSet) {
+        handleAddSet();
+        return;
+      }
+
+      if (weightDelta === 0 && repsDelta === 0) {
+        // Plain duplicate
+        duplicateSet(db, lastSet);
+        return;
+      }
+
+      // Duplicate with increments applied
+      const newWeightValue =
+        lastSet.weight_value != null ? lastSet.weight_value + weightDelta : weightDelta || null;
+      const newReps = lastSet.reps != null ? lastSet.reps + repsDelta : repsDelta || null;
+
+      addSet(db, currentSE.id, {
+        userId,
+        weight_value: newWeightValue,
+        weight_unit: lastSet.weight_unit ?? userUnit,
+        reps: newReps,
+        failure_metric: lastSet.failure_metric ?? defaultFailureMetric,
+        rir: lastSet.rir ?? null,
+        rpe: lastSet.rpe ?? null,
+        is_warmup: false,
+      });
+    },
+    [db, currentSE, currentSets, userId, userUnit, defaultFailureMetric, handleAddSet],
+  );
+
+  const handleDuplicateLongPress = useCallback(() => {
+    const lastSet = currentSets[currentSets.length - 1];
+    if (!lastSet) return;
+
+    Alert.alert(
+      t('session.duplicate_set'),
+      undefined,
+      [
+        {
+          text: t('session.duplicate_same'),
+          onPress: () => handleDuplicateVariant(0, 0),
+        },
+        {
+          text: t('session.duplicate_plus_rep'),
+          onPress: () => handleDuplicateVariant(0, 1),
+        },
+        {
+          text: t('session.duplicate_plus_weight'),
+          onPress: () => handleDuplicateVariant(2.5, 0),
+        },
+        { text: t('common.cancel'), style: 'cancel' },
+      ],
+    );
+  }, [currentSets, t, handleDuplicateVariant]);
+
   // ── Navigation ────────────────────────────────────────────────────────────
 
-  // TKT-0023: confirm an early finish when planned exercises remain unlogged.
-  // Runs `proceed` immediately for unplanned sessions (no routine) or when every
-  // exercise has a working set; otherwise asks first. The count is computed
-  // before `proceed` mutates anything, so "Back to workout" leaves state intact.
   const confirmFinishIfNeeded = useCallback(
     (proceed: () => void) => {
       const isPlanned = currentSession?.routine_id != null;
@@ -375,9 +467,6 @@ export default function ActiveSessionScreen() {
       goToNextExercise(db, sessionId, currentSE.id, nextSE.id);
       setExerciseIndex(nextIndex);
     } else {
-      // Last exercise → finish session (confirm first if exercises remain
-      // unlogged). Commit active time first (TKT-0011) so the summary duration
-      // reflects real active time, not wall-clock.
       confirmFinishIfNeeded(() => {
         goToNextExercise(db, sessionId, currentSE.id, null);
         commitNow();
@@ -393,7 +482,7 @@ export default function ActiveSessionScreen() {
       if (currentSE) {
         goToNextExercise(db, sessionId, currentSE.id, null);
       }
-      commitNow(); // TKT-0011: persist active time before computing the summary
+      commitNow();
       finishSession(db, sessionId);
       router.replace(`/session/summary/${sessionId}`);
     });
@@ -401,19 +490,18 @@ export default function ActiveSessionScreen() {
 
   // ── ⋮ Menu ────────────────────────────────────────────────────────────────
 
-  // handleMenuAction is defined first so showMenu can reference it directly.
   const handleMenuAction = useCallback(
     (actionIndex: number) => {
       if (!db || !sessionId || !currentSE) return;
 
       switch (actionIndex) {
-        case 0: // Add exercise
+        case 0:
           router.push(`/catalog?pickForSession=${sessionId}`);
           break;
-        case 1: // Swap exercise
+        case 1:
           router.push(`/catalog?swapSession=${sessionId}&swapSE=${currentSE.id}`);
           break;
-        case 2: // Skip exercise
+        case 2:
           Alert.alert(t('session.skip_confirm'), undefined, [
             {
               text: t('session.skip_yes'),
@@ -427,7 +515,7 @@ export default function ActiveSessionScreen() {
             { text: t('common.cancel'), style: 'cancel' },
           ]);
           break;
-        case 3: // Group superset with adjacent
+        case 3:
           {
             const adjacentSE = sessionExercises[safeIndex + 1] ?? sessionExercises[safeIndex - 1];
             if (adjacentSE) {
@@ -435,7 +523,7 @@ export default function ActiveSessionScreen() {
             }
           }
           break;
-        case 4: // Start dropset selection
+        case 4:
           setIsSelectingDropset(true);
           setDropsetSelection(new Set());
           break;
@@ -448,8 +536,6 @@ export default function ActiveSessionScreen() {
 
   const showMenu = useCallback(() => setMenuVisible(true), []);
 
-  // Cross-platform action menu (native Android Alert silently drops options
-  // beyond three — including cancel — so we use a Modal-based sheet instead).
   const menuOptions = useMemo(
     () => [
       { label: t('session.menu_add_exercise'), onPress: () => handleMenuAction(0) },
@@ -505,8 +591,6 @@ export default function ActiveSessionScreen() {
     if (hasNext) setExerciseIndex(safeIndex + 1);
   }, [hasNext, safeIndex]);
 
-  // Horizontal swipe: left swipe → next exercise, right swipe → previous.
-  // Threshold: 60 dp to distinguish from text input horizontal scrolling.
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-60, 60])
     .failOffsetY([-20, 20])
@@ -546,10 +630,11 @@ export default function ActiveSessionScreen() {
 
   const isLastExercise = safeIndex >= sessionExercises.length - 1;
   const isFinishedSession = currentSession.status === 'completed';
+  const hasSets = currentSets.length > 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
-      {/* Exercise action menu (add / swap / skip / superset / dropset) */}
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      {/* Exercise action menu */}
       <ActionMenu
         visible={menuVisible}
         title={t('session.exercise_menu_title')}
@@ -587,7 +672,6 @@ export default function ActiveSessionScreen() {
         </View>
         <View style={styles.headerRight}>
           <Ionicons name="timer-outline" size={14} color={colors.textSecondary} />
-          {/* TKT-0011: real active time, not Date.now() - started_at */}
           <Text
             style={styles.sessionTimerText}
             accessibilityLabel={t('session.session_timer_label')}
@@ -622,226 +706,261 @@ export default function ActiveSessionScreen() {
         )}
       </View>
 
-      {/* ── Exercise name + per-exercise timer ── */}
-      {currentExercise ? (
-        <View style={styles.exerciseHeader}>
-          <Text style={styles.exerciseName} numberOfLines={2}>
-            {currentExercise.name}
-          </Text>
-          {currentSE?.started_at ? (
-            <View style={styles.exerciseTimerChip}>
-              <Text style={styles.exerciseTimerChipText}>
-                {t('session.on_this_exercise')}
-              </Text>
-              <SessionTimer
-                startedAt={currentSE.started_at}
-                style={styles.exerciseTimerInline}
-                accessibilityLabel={t('session.exercise_timer_label')}
-              />
-            </View>
-          ) : null}
-          {/* TKT-0014 / TKT-0018: "Last time" line */}
-          {lastSessionFirstSet ? (
-            <Text
-              style={styles.lastTimeText}
-              accessibilityLabel={
-                lastSessionFirstSet.rir != null
-                  ? t('session.last_time', {
-                      weight: formatWeight(lastSessionFirstSet, userUnit),
-                      reps: lastSessionFirstSet.reps ?? '?',
-                      rir: lastSessionFirstSet.rir,
-                    })
-                  : t('session.last_time_no_rir', {
-                      weight: formatWeight(lastSessionFirstSet, userUnit),
-                      reps: lastSessionFirstSet.reps ?? '?',
-                    })
-              }
-            >
-              {lastSessionFirstSet.rir != null
-                ? t('session.last_time', {
-                    weight: formatWeight(lastSessionFirstSet, userUnit),
-                    reps: lastSessionFirstSet.reps ?? '?',
-                    rir: lastSessionFirstSet.rir,
-                  })
-                : t('session.last_time_no_rir', {
-                    weight: formatWeight(lastSessionFirstSet, userUnit),
-                    reps: lastSessionFirstSet.reps ?? '?',
-                  })}
-            </Text>
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.exerciseHeader}>
-          <Text style={styles.noExercisesText}>{t('session.no_exercises')}</Text>
-        </View>
-      )}
-
-      {/* ── Column headers + sets list (wrapped in swipe gesture) ── */}
-      {/* TKT-0022: GestureDetector enables left/right swipe between exercises */}
+      {/*
+       * TKT-0059: Two-panel layout
+       * ┌─────────────────────────────────────────┐
+       * │ scrollable: header + history + chevrons  │ flex: 1
+       * ├─────────────────────────────────────────┤
+       * │ KeyboardAvoidingView                     │
+       * │   pinned active panel (add/dup buttons + │
+       * │   set rows + next/finish)                │
+       * └─────────────────────────────────────────┘
+       */}
       <GestureDetector gesture={swipeGesture}>
-        <View style={styles.swipeContainer}>
-          {currentExercise ? (
-            <View style={styles.colHeaders}>
-              <Text style={[styles.colHeader, styles.colHeaderIndex]}>{t('session.set_number')}</Text>
-              <Text style={[styles.colHeader, styles.colHeaderWide]}>
-                {currentExercise.is_bodyweight ? t('session.added_load_label') : t('session.weight_label')}
-              </Text>
-              <Text style={[styles.colHeader, styles.colHeaderWide]}>{t('session.reps_label')}</Text>
-              {defaultFailureMetric !== 'none' ? (
-                <Text style={[styles.colHeader, styles.colHeaderNarrow]}>
-                  {defaultFailureMetric === 'rpe' ? t('session.rpe_label') : t('session.rir_label')}
+        <View style={styles.body}>
+
+          {/* ── Top scrollable panel: exercise header + previous sets ── */}
+          <ScrollView
+            style={styles.historyScroll}
+            contentContainerStyle={styles.historyContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Exercise name + per-exercise timer */}
+            {currentExercise ? (
+              <View style={styles.exerciseHeader}>
+                <Text style={styles.exerciseName} numberOfLines={2}>
+                  {currentExercise.name}
                 </Text>
+                {currentSE?.started_at ? (
+                  <View style={styles.exerciseTimerChip}>
+                    <Text style={styles.exerciseTimerChipText}>
+                      {t('session.on_this_exercise')}
+                    </Text>
+                    <SessionTimer
+                      startedAt={currentSE.started_at}
+                      style={styles.exerciseTimerInline}
+                      accessibilityLabel={t('session.exercise_timer_label')}
+                    />
+                  </View>
+                ) : null}
+
+                {/* TKT-0017: Routine target chip */}
+                {routineExerciseForCurrent ? (
+                  <RoutineTargetChip
+                    routineExercise={routineExerciseForCurrent}
+                    currentSets={currentSets}
+                  />
+                ) : null}
+
+                {/* TKT-0014 / TKT-0018: "Last time" line */}
+                {lastSessionFirstSet ? (
+                  <Text
+                    style={styles.lastTimeText}
+                    accessibilityLabel={
+                      lastSessionFirstSet.rir != null
+                        ? t('session.last_time', {
+                            weight: formatWeight(lastSessionFirstSet, userUnit),
+                            reps: lastSessionFirstSet.reps ?? '?',
+                            rir: lastSessionFirstSet.rir,
+                          })
+                        : t('session.last_time_no_rir', {
+                            weight: formatWeight(lastSessionFirstSet, userUnit),
+                            reps: lastSessionFirstSet.reps ?? '?',
+                          })
+                    }
+                  >
+                    {lastSessionFirstSet.rir != null
+                      ? t('session.last_time', {
+                          weight: formatWeight(lastSessionFirstSet, userUnit),
+                          reps: lastSessionFirstSet.reps ?? '?',
+                          rir: lastSessionFirstSet.rir,
+                        })
+                      : t('session.last_time_no_rir', {
+                          weight: formatWeight(lastSessionFirstSet, userUnit),
+                          reps: lastSessionFirstSet.reps ?? '?',
+                        })}
+                  </Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.exerciseHeader}>
+                <Text style={styles.noExercisesText}>{t('session.no_exercises')}</Text>
+              </View>
+            )}
+
+            {/* Column headers */}
+            {currentExercise ? (
+              <View style={styles.colHeaders}>
+                <Text style={[styles.colHeader, styles.colHeaderIndex]}>{t('session.set_number')}</Text>
+                <Text style={[styles.colHeader, styles.colHeaderWide]}>
+                  {currentExercise.is_bodyweight ? t('session.added_load_label') : t('session.weight_label')}
+                </Text>
+                <Text style={[styles.colHeader, styles.colHeaderWide]}>{t('session.reps_label')}</Text>
+                {defaultFailureMetric !== 'none' ? (
+                  <Text style={[styles.colHeader, styles.colHeaderNarrow]}>
+                    {defaultFailureMetric === 'rpe' ? t('session.rpe_label') : t('session.rir_label')}
+                  </Text>
+                ) : (
+                  <View style={styles.colHeaderNarrow} />
+                )}
+                <View style={styles.colHeaderConfirm} />
+              </View>
+            ) : null}
+
+            {/* Previous confirmed sets */}
+            {currentSets.map((set, idx) => (
+              <SetRow
+                key={`${set.id}:${set.updated_at}`}
+                set={set}
+                index={idx}
+                isBodyweight={currentExercise?.is_bodyweight ?? false}
+                defaultFailureMetric={defaultFailureMetric}
+                userUnit={userUnit}
+                isSelected={dropsetSelection.has(set.id)}
+                onConfirm={(patch) =>
+                  handleConfirmSet(set.id, patch, currentExercise?.id ?? currentSE?.exercise_id ?? '')
+                }
+                onDelete={() => deleteSet(db, set.id)}
+                onSelectionToggle={isSelectingDropset ? () => toggleSetSelection(set.id) : undefined}
+                onToggleWarmup={() => updateSet(db, set.id, { is_warmup: !set.is_warmup })}
+                onToggleReachedFailure={() =>
+                  updateSet(db, set.id, { reached_failure: !set.reached_failure })
+                }
+              />
+            ))}
+
+            {/* Dropset action bar */}
+            {isSelectingDropset ? (
+              <View style={styles.dropsetBar}>
+                <Text style={styles.dropsetBarText}>{t('session.select_sets_for_dropset')}</Text>
+                <Pressable
+                  onPress={handleConfirmDropset}
+                  style={styles.dropsetConfirmBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('session.dropset_done')}
+                >
+                  <Text style={styles.dropsetConfirmText}>{t('session.dropset_done')}</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {/* ── Position dots + chevrons (TKT-0022) ── */}
+          <View style={styles.pagerRow}>
+            <Pressable
+              onPress={handlePrevExercise}
+              style={[styles.chevronButton, !hasPrev && styles.chevronButtonHidden]}
+              accessibilityRole="button"
+              accessibilityLabel={t('session.prev_exercise')}
+              accessibilityState={{ disabled: !hasPrev }}
+              hitSlop={8}
+              disabled={!hasPrev}
+            >
+              <Ionicons name="chevron-back" size={20} color={hasPrev ? colors.textSecondary : 'transparent'} />
+            </Pressable>
+            <ExercisePager
+              total={sessionExercises.length}
+              currentIndex={safeIndex}
+              onSelect={(i) => setExerciseIndex(i)}
+            />
+            <Pressable
+              onPress={handleNextExerciseChevron}
+              style={[styles.chevronButton, !hasNext && styles.chevronButtonHidden]}
+              accessibilityRole="button"
+              accessibilityLabel={t('session.next_exercise_chevron')}
+              accessibilityState={{ disabled: !hasNext }}
+              hitSlop={8}
+              disabled={!hasNext}
+            >
+              <Ionicons name="chevron-forward" size={20} color={hasNext ? colors.textSecondary : 'transparent'} />
+            </Pressable>
+          </View>
+
+          {/* ── TKT-0059: Pinned bottom panel ── */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={0}
+          >
+            <View style={[styles.bottomPanel, { paddingBottom: insets.bottom + spacing.sm }]}>
+              {/* Add / Duplicate / Warmup buttons */}
+              {!isFinishedSession && currentExercise ? (
+                <View style={styles.setActions}>
+                  <Pressable
+                    onPress={handleAddSet}
+                    style={styles.setActionButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('session.add_set')}
+                  >
+                    <Text style={styles.setActionText}>{t('session.add_set')}</Text>
+                  </Pressable>
+                  {/* TKT-0026: long-press for +rep/+weight variants */}
+                  <Pressable
+                    onPress={hasSets ? handleDuplicateSet : undefined}
+                    onLongPress={hasSets ? handleDuplicateLongPress : undefined}
+                    style={[styles.setActionButton, !hasSets && styles.setActionButtonDisabled]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('session.duplicate_set')}
+                    accessibilityState={{ disabled: !hasSets }}
+                    disabled={!hasSets}
+                  >
+                    <Text style={[styles.setActionText, !hasSets && styles.setActionTextDisabled]}>
+                      {t('session.duplicate_set')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleAddWarmupSet}
+                    style={styles.setActionButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('session.add_warmup_set')}
+                  >
+                    <Text style={styles.setActionText}>{t('session.add_warmup_set')}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {/* Next / Finish primary actions */}
+              {!isFinishedSession ? (
+                <View style={styles.primaryActions}>
+                  <Pressable
+                    onPress={handleNextExercise}
+                    style={styles.nextButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isLastExercise ? t('session.finish_workout') : t('session.next_exercise')
+                    }
+                  >
+                    <Text style={styles.nextButtonText}>
+                      {isLastExercise ? t('session.finish_workout') : t('session.next_exercise')}
+                    </Text>
+                  </Pressable>
+                  {!isLastExercise ? (
+                    <Pressable
+                      onPress={handleFinishWorkout}
+                      style={styles.finishLink}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('session.finish_workout')}
+                    >
+                      <Text style={styles.finishLinkText}>{t('session.finish_workout')}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
               ) : (
-                <View style={styles.colHeaderNarrow} />
+                <View style={styles.primaryActions}>
+                  <Pressable
+                    onPress={() => router.replace(`/session/summary/${sessionId}`)}
+                    style={styles.nextButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('summary.done_button')}
+                  >
+                    <Text style={styles.nextButtonText}>{t('summary.done_button')}</Text>
+                  </Pressable>
+                </View>
               )}
-              <View style={styles.colHeaderConfirm} />
             </View>
-          ) : null}
+          </KeyboardAvoidingView>
 
-      {/* ── Sets list ── */}
-      <ScrollView
-        style={styles.setsScrollView}
-        contentContainerStyle={styles.setsContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        {currentSets.map((set, idx) => (
-          <SetRow
-            key={`${set.id}:${set.updated_at}`}
-            set={set}
-            index={idx}
-            isBodyweight={currentExercise?.is_bodyweight ?? false}
-            defaultFailureMetric={defaultFailureMetric}
-            userUnit={userUnit}
-            isSelected={dropsetSelection.has(set.id)}
-            onConfirm={(patch) =>
-              handleConfirmSet(set.id, patch, currentExercise?.id ?? currentSE?.exercise_id ?? '')
-            }
-            onDelete={() => deleteSet(db, set.id)}
-            onSelectionToggle={isSelectingDropset ? () => toggleSetSelection(set.id) : undefined}
-            onToggleWarmup={() => updateSet(db, set.id, { is_warmup: !set.is_warmup })}
-            onToggleReachedFailure={() =>
-              updateSet(db, set.id, { reached_failure: !set.reached_failure })
-            }
-          />
-        ))}
-
-        {/* Dropset action bar */}
-        {isSelectingDropset ? (
-          <View style={styles.dropsetBar}>
-            <Text style={styles.dropsetBarText}>{t('session.select_sets_for_dropset')}</Text>
-            <Pressable
-              onPress={handleConfirmDropset}
-              style={styles.dropsetConfirmBtn}
-              accessibilityRole="button"
-              accessibilityLabel={t('session.dropset_done')}
-            >
-              <Text style={styles.dropsetConfirmText}>{t('session.dropset_done')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {/* ── Add / Duplicate / Warmup buttons ── */}
-        {!isFinishedSession && currentExercise ? (
-          <View style={styles.setActions}>
-            <Pressable
-              onPress={handleAddSet}
-              style={styles.setActionButton}
-              accessibilityRole="button"
-              accessibilityLabel={t('session.add_set')}
-            >
-              <Text style={styles.setActionText}>{t('session.add_set')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleDuplicateSet}
-              style={styles.setActionButton}
-              accessibilityRole="button"
-              accessibilityLabel={t('session.duplicate_set')}
-            >
-              <Text style={styles.setActionText}>{t('session.duplicate_set')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={handleAddWarmupSet}
-              style={styles.setActionButton}
-              accessibilityRole="button"
-              accessibilityLabel={t('session.add_warmup_set')}
-            >
-              <Text style={styles.setActionText}>{t('session.add_warmup_set')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-      </ScrollView>
         </View>
       </GestureDetector>
-
-      {/* ── Position dots + chevrons (TKT-0022) ── */}
-      <View style={styles.pagerRow}>
-        <Pressable
-          onPress={handlePrevExercise}
-          style={[styles.chevronButton, !hasPrev && styles.chevronButtonHidden]}
-          accessibilityRole="button"
-          accessibilityLabel={t('session.prev_exercise')}
-          accessibilityState={{ disabled: !hasPrev }}
-          hitSlop={8}
-          disabled={!hasPrev}
-        >
-          <Ionicons name="chevron-back" size={20} color={hasPrev ? colors.textSecondary : 'transparent'} />
-        </Pressable>
-        <ExercisePager
-          total={sessionExercises.length}
-          currentIndex={safeIndex}
-          onSelect={(i) => setExerciseIndex(i)}
-        />
-        <Pressable
-          onPress={handleNextExerciseChevron}
-          style={[styles.chevronButton, !hasNext && styles.chevronButtonHidden]}
-          accessibilityRole="button"
-          accessibilityLabel={t('session.next_exercise_chevron')}
-          accessibilityState={{ disabled: !hasNext }}
-          hitSlop={8}
-          disabled={!hasNext}
-        >
-          <Ionicons name="chevron-forward" size={20} color={hasNext ? colors.textSecondary : 'transparent'} />
-        </Pressable>
-      </View>
-
-      {/* ── Bottom actions ── */}
-      {!isFinishedSession ? (
-        <View style={styles.bottomActions}>
-          <Pressable
-            onPress={handleNextExercise}
-            style={styles.nextButton}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isLastExercise ? t('session.finish_workout') : t('session.next_exercise')
-            }
-          >
-            <Text style={styles.nextButtonText}>
-              {isLastExercise ? t('session.finish_workout') : t('session.next_exercise')}
-            </Text>
-          </Pressable>
-          {!isLastExercise ? (
-            <Pressable
-              onPress={handleFinishWorkout}
-              style={styles.finishLink}
-              accessibilityRole="button"
-              accessibilityLabel={t('session.finish_workout')}
-            >
-              <Text style={styles.finishLinkText}>{t('session.finish_workout')}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.bottomActions}>
-          <Pressable
-            onPress={() => router.replace(`/session/summary/${sessionId}`)}
-            style={styles.nextButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('summary.done_button')}
-          >
-            <Text style={styles.nextButtonText}>{t('summary.done_button')}</Text>
-          </Pressable>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -892,9 +1011,21 @@ const styles = StyleSheet.create({
   },
   menuIcon: { fontSize: 18, color: colors.textSecondary, fontWeight: '700' },
 
+  // TKT-0059: two-panel body
+  body: { flex: 1 },
+
+  // Top scrollable panel
+  historyScroll: { flex: 1 },
+  historyContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.xs,
+    flexGrow: 1,
+  },
+
   // Exercise name + timer
   exerciseHeader: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.sm,
     paddingBottom: spacing.md,
     gap: spacing.sm,
   },
@@ -918,7 +1049,7 @@ const styles = StyleSheet.create({
   colHeaders: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.sm,
     paddingBottom: spacing.xs,
     gap: spacing.sm,
   },
@@ -927,34 +1058,6 @@ const styles = StyleSheet.create({
   colHeaderWide: { flex: 3 },
   colHeaderNarrow: { flex: 2 },
   colHeaderConfirm: { width: TOUCH_TARGET },
-
-  // Sets
-  setsScrollView: { flex: 1 },
-  setsContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    gap: spacing.xs,
-    flexGrow: 1,
-  },
-
-  // Set action buttons
-  setActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  setActionButton: {
-    flex: 1,
-    minHeight: TOUCH_TARGET,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-  },
-  setActionText: { ...typography.label, color: colors.textPrimary, fontWeight: '500' },
 
   // Dropset bar
   dropsetBar: {
@@ -975,10 +1078,7 @@ const styles = StyleSheet.create({
   },
   dropsetConfirmText: { ...typography.label, color: colors.onAccent, fontWeight: '600' },
 
-  // TKT-0022: swipe gesture wrapper
-  swipeContainer: { flex: 1 },
-
-  // TKT-0022: pager row with chevrons
+  // Pager row (chevrons)
   pagerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -991,18 +1091,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chevronButtonHidden: {
-    opacity: 0,
+  chevronButtonHidden: { opacity: 0 },
+
+  // TKT-0059: pinned bottom panel
+  bottomPanel: {
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
   },
 
-  // Position dots (legacy — keep for reference)
-  pager: { paddingVertical: spacing.sm },
+  // Set action buttons (inside bottom panel)
+  setActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  setActionButton: {
+    flex: 1,
+    minHeight: TOUCH_TARGET,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  setActionButtonDisabled: {
+    opacity: 0.38,
+  },
+  setActionText: { ...typography.label, color: colors.textPrimary, fontWeight: '500' },
+  setActionTextDisabled: { color: colors.textTertiary },
 
-  // Bottom actions
-  bottomActions: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.sm,
+  // Primary actions (next/finish)
+  primaryActions: {
     gap: spacing.sm,
   },
   nextButton: {

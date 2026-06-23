@@ -9,9 +9,14 @@
  * - Failure metric (RIR / RPE / none) follows profile default, can be changed per set.
  * - is_warmup toggle: warmup rows are visually muted.
  * - Dropset visual indicator when drop_group is set.
+ *
+ * TKT-0061: RIR/RPE state is null (unset) vs 0 (explicit). Placeholder "—" shown when null.
+ * TKT-0019: weight → reps → RIR/RPE focus chain; last field "done" commits the set.
+ * TKT-0046: ⓘ icon next to RIR/RPE stepper opens equivalence guide modal.
+ * TKT-0050: Haptics on confirm (called by parent via onConfirm callback).
  */
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -25,6 +30,11 @@ import { useTranslation } from 'react-i18next';
 import type { SetRow as SetRowData, FailureMetricEnum, UnitEnum } from '@/db';
 import { colors, spacing, typography, radius, TOUCH_TARGET } from '@/lib/theme';
 import { parseDecimalFloat } from '@/lib/parseDecimal';
+import {
+  incrementFailureVal,
+  decrementFailureVal,
+} from './setRowHelpers';
+import { RirGuideModal } from './RirGuideModal';
 
 export interface SetRowProps {
   set: SetRowData;
@@ -38,18 +48,18 @@ export interface SetRowProps {
   onSelectionToggle?: () => void;
   onToggleWarmup?: () => void;
   onToggleReachedFailure?: () => void;
+  /**
+   * TKT-0019: when provided, the PREVIOUS row's reps field can forward focus
+   * to this row's weight field.
+   */
+  weightRef?: React.RefObject<TextInput | null>;
 }
 
-function NumericField({
-  value,
-  onChangeText,
-  onIncrement,
-  onDecrement,
-  step,
-  minValue,
-  allowDecimal,
-  label,
-}: {
+// ---------------------------------------------------------------------------
+// NumericField — weight / reps stepper input
+// ---------------------------------------------------------------------------
+
+interface NumericFieldProps {
   value: string;
   onChangeText: (v: string) => void;
   onIncrement: () => void;
@@ -58,7 +68,22 @@ function NumericField({
   minValue: number;
   allowDecimal?: boolean;
   label: string;
-}) {
+  inputRef?: React.RefObject<TextInput | null>;
+  returnKeyType?: 'next' | 'done';
+  onSubmitEditing?: () => void;
+}
+
+function NumericField({
+  value,
+  onChangeText,
+  onIncrement,
+  onDecrement,
+  allowDecimal,
+  label,
+  inputRef,
+  returnKeyType = 'done',
+  onSubmitEditing,
+}: NumericFieldProps) {
   const { t } = useTranslation();
   return (
     <View style={fieldStyles.wrapper}>
@@ -71,13 +96,15 @@ function NumericField({
         <Ionicons name="remove" size={14} color={colors.textSecondary} />
       </Pressable>
       <TextInput
+        ref={inputRef as React.RefObject<TextInput>}
         style={fieldStyles.input}
         value={value}
         onChangeText={onChangeText}
         keyboardType={allowDecimal ? 'decimal-pad' : 'number-pad'}
         selectTextOnFocus
         accessibilityLabel={label}
-        returnKeyType="done"
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
       />
       <Pressable
         onPress={onIncrement}
@@ -86,6 +113,74 @@ function NumericField({
         hitSlop={4}
       >
         <Ionicons name="add" size={14} color={colors.textSecondary} />
+      </Pressable>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TKT-0061 — RIR/RPE nullable stepper display
+// ---------------------------------------------------------------------------
+
+interface NullableStepperProps {
+  /** null = unset; number = explicit value (0 is valid for RIR) */
+  value: number | null;
+  onIncrement: () => void;
+  onDecrement: () => void;
+  label: string;
+  /** TKT-0046: show ⓘ icon to open guide */
+  onInfoPress: () => void;
+}
+
+function NullableStepper({
+  value,
+  onIncrement,
+  onDecrement,
+  label,
+  onInfoPress,
+}: NullableStepperProps) {
+  const { t } = useTranslation();
+  return (
+    <View style={fieldStyles.nullableWrapper}>
+      <View style={fieldStyles.wrapper}>
+        <Pressable
+          onPress={onDecrement}
+          style={fieldStyles.stepper}
+          accessibilityLabel={t('common.decrement', { label })}
+          hitSlop={4}
+        >
+          <Ionicons name="remove" size={14} color={colors.textSecondary} />
+        </Pressable>
+        {/* TKT-0061: show "—" placeholder when value is null */}
+        <View style={fieldStyles.nullableDisplay}>
+          <Text
+            style={[
+              fieldStyles.nullableValue,
+              value === null && fieldStyles.nullablePlaceholder,
+            ]}
+            accessibilityLabel={value === null ? t('session.rir_unset_a11y') : label + ' ' + String(value)}
+          >
+            {value === null ? '—' : String(value)}
+          </Text>
+        </View>
+        <Pressable
+          onPress={onIncrement}
+          style={fieldStyles.stepper}
+          accessibilityLabel={t('common.increment', { label })}
+          hitSlop={4}
+        >
+          <Ionicons name="add" size={14} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+      {/* TKT-0046: ⓘ info icon */}
+      <Pressable
+        onPress={onInfoPress}
+        style={fieldStyles.infoButton}
+        accessibilityRole="button"
+        accessibilityLabel={t('session.rir_guide_a11y')}
+        hitSlop={6}
+      >
+        <Ionicons name="information-circle-outline" size={17} color={colors.textTertiary} />
       </Pressable>
     </View>
   );
@@ -114,7 +209,39 @@ const fieldStyles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 6,
   },
+  // NullableStepper
+  nullableWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  nullableDisplay: {
+    minWidth: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  nullableValue: {
+    ...typography.logNumber,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  nullablePlaceholder: {
+    color: colors.textTertiary,
+    fontWeight: '400',
+  },
+  infoButton: {
+    width: TOUCH_TARGET,
+    height: TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
+
+// ---------------------------------------------------------------------------
+// SetRow
+// ---------------------------------------------------------------------------
 
 export function SetRow({
   set,
@@ -128,6 +255,7 @@ export function SetRow({
   onSelectionToggle,
   onToggleWarmup,
   onToggleReachedFailure,
+  weightRef: externalWeightRef,
 }: SetRowProps) {
   const { t } = useTranslation();
   const isWarmup = set.is_warmup;
@@ -135,34 +263,41 @@ export function SetRow({
   const effectiveMetric: FailureMetricEnum =
     set.failure_metric !== 'none' ? set.failure_metric : defaultFailureMetric;
 
-  // Local editable state — changes go to the DB only on confirm (✓)
+  // ── TKT-0019: refs for focus chain ──────────────────────────────────────
+  const internalWeightRef = useRef<TextInput | null>(null);
+  const weightInputRef = externalWeightRef ?? internalWeightRef;
+  const repsRef = useRef<TextInput | null>(null);
+
+  // Local editable state — changes go to the DB only on confirm (✓).
+  // Re-seeded from prop via `key={set.id}:{set.updated_at}` at render site
+  // (never with a setState-in-effect).
   const [weightStr, setWeightStr] = useState(
     set.weight_value != null ? String(set.weight_value) : '',
   );
   const [repsStr, setRepsStr] = useState(set.reps != null ? String(set.reps) : '');
-  const [failureValStr, setFailureValStr] = useState(() => {
-    if (effectiveMetric === 'rir') return set.rir != null ? String(set.rir) : '';
-    if (effectiveMetric === 'rpe') return set.rpe != null ? String(set.rpe) : '';
-    return '';
+
+  // TKT-0061: nullable RIR/RPE — null = unset, distinct from 0
+  const [failureVal, setFailureVal] = useState<number | null>(() => {
+    if (effectiveMetric === 'rir') return set.rir ?? null;
+    if (effectiveMetric === 'rpe') return set.rpe ?? null;
+    return null;
   });
 
-  // TKT-0009 #4: local input state is re-seeded from the `set` prop whenever the
-  // underlying set changes (external edit / duplication / reorder). This is driven
-  // by the `key={set.id}:{set.updated_at}` at the render site, which remounts the
-  // row so these useState initializers re-run with the fresh values. Local edits
-  // only touch the DB on confirm, so updated_at (hence the remount) changes only
-  // after a confirm — never mid-typing.
+  // TKT-0046: guide modal
+  const [guideVisible, setGuideVisible] = useState(false);
+  const openGuide = useCallback(() => setGuideVisible(true), []);
+  const closeGuide = useCallback(() => setGuideVisible(false), []);
 
   // Parse helpers
   const parsedWeight = parseDecimalFloat(weightStr);
   const parsedReps = parseInt(repsStr, 10);
-  const parsedFailureVal = parseInt(failureValStr, 10);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     const weight = isNaN(parsedWeight) ? null : parsedWeight;
     const reps = isNaN(parsedReps) ? null : parsedReps;
-    const rir = effectiveMetric === 'rir' ? (isNaN(parsedFailureVal) ? null : parsedFailureVal) : set.rir;
-    const rpe = effectiveMetric === 'rpe' ? (isNaN(parsedFailureVal) ? null : parsedFailureVal) : set.rpe;
+    // TKT-0061: preserve null in confirm — failureVal is already null or a number
+    const rir = effectiveMetric === 'rir' ? failureVal : set.rir;
+    const rpe = effectiveMetric === 'rpe' ? failureVal : set.rpe;
 
     onConfirm({
       weight_value: weight,
@@ -172,7 +307,18 @@ export function SetRow({
       rir,
       rpe,
     });
-  };
+  }, [parsedWeight, parsedReps, effectiveMetric, failureVal, set.rir, set.rpe, userUnit, onConfirm]);
+
+  // TKT-0019: "done" on last field (reps when metric=none, or stepper confirm)
+  const handleRepsDone = useCallback(() => {
+    if (effectiveMetric === 'none') {
+      // Reps is the last field — commit immediately
+      handleConfirm();
+    }
+    // If metric ≠ none, reps has returnKeyType="next" and focus goes to stepper;
+    // since the stepper is not a TextInput, we just dismiss keyboard and wait for ✓.
+    // The user still taps ✓ (or uses the done button) to commit.
+  }, [effectiveMetric, handleConfirm]);
 
   const warmupOpacity = isWarmup ? 0.55 : 1;
 
@@ -181,11 +327,13 @@ export function SetRow({
   const showFailure = effectiveMetric !== 'none';
 
   const dropGroup = set.drop_group;
-
   const reachedFailure = set.reached_failure;
 
   return (
     <View style={[styles.row, isWarmup && styles.rowWarmup, isSelected && styles.rowSelected]}>
+      {/* TKT-0046: guide modal — rendered outside the row layout */}
+      <RirGuideModal visible={guideVisible} onDismiss={closeGuide} />
+
       {/* Drop-group indicator */}
       {dropGroup ? <View style={styles.dropIndicator} /> : null}
 
@@ -203,7 +351,7 @@ export function SetRow({
         </Text>
       </Pressable>
 
-      {/* Weight */}
+      {/* Weight — TKT-0019: returnKeyType="next", focuses reps on submit */}
       <View style={[styles.fieldCell, styles.fieldCellWide, { opacity: warmupOpacity }]}>
         <NumericField
           value={weightStr}
@@ -222,10 +370,13 @@ export function SetRow({
           minValue={0}
           allowDecimal
           label={weightLabel}
+          inputRef={weightInputRef}
+          returnKeyType="next"
+          onSubmitEditing={() => repsRef.current?.focus()}
         />
       </View>
 
-      {/* Reps */}
+      {/* Reps — TKT-0019: returnKeyType="next" or "done" depending on metric */}
       <View style={[styles.fieldCell, styles.fieldCellWide, { opacity: warmupOpacity }]}>
         <NumericField
           value={repsStr}
@@ -241,29 +392,25 @@ export function SetRow({
           step={1}
           minValue={0}
           label={t('session.reps_label')}
+          inputRef={repsRef}
+          returnKeyType={showFailure ? 'next' : 'done'}
+          onSubmitEditing={handleRepsDone}
         />
       </View>
 
-      {/* RIR / RPE */}
+      {/* RIR / RPE — TKT-0061 nullable stepper, TKT-0046 info icon */}
       {showFailure ? (
         <View style={[styles.fieldCell, styles.fieldCellNarrow, { opacity: warmupOpacity }]}>
-          <NumericField
-            value={failureValStr}
-            onChangeText={setFailureValStr}
-            onIncrement={() => {
-              const cur = isNaN(parsedFailureVal) ? 0 : parsedFailureVal;
-              const max = effectiveMetric === 'rpe' ? 10 : 5;
-              setFailureValStr(String(Math.min(max, cur + 1)));
-            }}
-            onDecrement={() => {
-              const cur = isNaN(parsedFailureVal) ? 0 : parsedFailureVal;
-              // RPE floor is 1 (scale 1–10); RIR floor is 0 (0 = reached failure).
-              const min = effectiveMetric === 'rpe' ? 1 : 0;
-              setFailureValStr(String(Math.max(min, cur - 1)));
-            }}
-            step={1}
-            minValue={0}
+          <NullableStepper
+            value={failureVal}
+            onIncrement={() =>
+              setFailureVal(incrementFailureVal(failureVal, effectiveMetric))
+            }
+            onDecrement={() =>
+              setFailureVal(decrementFailureVal(failureVal, effectiveMetric))
+            }
             label={failureLabel}
+            onInfoPress={openGuide}
           />
         </View>
       ) : (
