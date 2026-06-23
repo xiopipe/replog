@@ -26,6 +26,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import type {
   ExperienceEnum,
@@ -274,6 +275,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { db, session, signOut } = useAuth();
   const userId = session?.user?.id ?? '';
+  const router = useRouter();
 
   // TKT-0044: session-scoped nudge dismiss (may reappear next session if profile still incomplete)
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
@@ -499,6 +501,19 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
+        {/* --- Notifications (TKT-0062) --- */}
+        <Section title={t('settings.notif_title')}>
+          <Pressable
+            onPress={() => router.push('/settings/notifications')}
+            style={notifRowStyles.row}
+            accessibilityRole="button"
+            accessibilityLabel={t('settings.notifications_row')}
+          >
+            <Text style={notifRowStyles.label}>{t('settings.notifications_row')}</Text>
+            <Text style={notifRowStyles.chevron}>›</Text>
+          </Pressable>
+        </Section>
+
         {/* --- Account --- */}
         <Section title={t('settings.account')}>
           <Text style={styles.emailLabel}>{session?.user?.email ?? ''}</Text>
@@ -576,5 +591,23 @@ const styles = StyleSheet.create({
   emailLabel: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+});
+
+const notifRowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: TOUCH_TARGET,
+    justifyContent: 'space-between',
+  },
+  label: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  chevron: {
+    ...typography.title,
+    color: colors.textTertiary,
+    fontSize: 22,
   },
 });
