@@ -4,7 +4,7 @@ import 'react-native-url-polyfill/auto';
 
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,6 +14,68 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import '@/lib/i18n';
 import { colors } from '@/lib/theme';
 import { OfflineBanner } from '@/features/sync/OfflineBanner';
+import { OnboardingModal } from '@/features/onboarding/OnboardingModal';
+import { shouldShowOnboarding } from '@/features/onboarding/onboarding';
+import { getProfile, updateProfile } from '@/features/settings/profile';
+import { useRows } from '@/db';
+import type { FailureMetricEnum, UnitEnum } from '@/db';
+
+// ---------------------------------------------------------------------------
+// OnboardingGate — mounted with key=userId so it auto-resets on user change.
+// Keeps its dismissed state local; when the user signs out and back in,
+// the key changes → component remounts → dismissed resets to false.
+// ---------------------------------------------------------------------------
+
+interface OnboardingGateProps {
+  userId: string;
+}
+
+function OnboardingGate({ userId }: OnboardingGateProps) {
+  const { db } = useAuth();
+
+  // Session-scoped dismiss — resets to false automatically on remount (new key).
+  const [dismissed, setDismissed] = useState(false);
+
+  const rawProfiles = useRows(db?.profiles$);
+
+  const profile = useMemo(
+    () => (rawProfiles ? getProfile(rawProfiles, userId) : null),
+    [rawProfiles, userId],
+  );
+
+  // Derived: show the modal when conditions are met (no useEffect needed).
+  const showOnboarding = !dismissed && shouldShowOnboarding(profile);
+
+  const handleOnboardingConfirm = useCallback(
+    (unit: UnitEnum, metric: FailureMetricEnum) => {
+      if (!db) return;
+      updateProfile(db, userId, {
+        unit_preference: unit,
+        default_failure_metric: metric,
+        onboarding_complete: true,
+      });
+      setDismissed(true);
+    },
+    [db, userId],
+  );
+
+  // Skip: don't persist. Settings nudge will appear.
+  const handleOnboardingSkip = useCallback(() => {
+    setDismissed(true);
+  }, []);
+
+  return (
+    <OnboardingModal
+      visible={showOnboarding}
+      onConfirm={handleOnboardingConfirm}
+      onSkip={handleOnboardingSkip}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RootNavigator
+// ---------------------------------------------------------------------------
 
 function RootNavigator() {
   const { session, initializing } = useAuth();
@@ -60,6 +122,16 @@ function RootNavigator() {
         {/* History detail route */}
         <Stack.Screen name="history/[id]" />
       </Stack>
+
+      {/*
+       * TKT-0043: Post-register onboarding modal (overlay, not a route).
+       * The `key` prop equals the user id so the gate remounts automatically
+       * when the user signs out and a different user signs in — resetting its
+       * session-scoped `dismissed` state without any useEffect setState.
+       */}
+      {session?.user?.id ? (
+        <OnboardingGate key={session.user.id} userId={session.user.id} />
+      ) : null}
     </View>
   );
 }

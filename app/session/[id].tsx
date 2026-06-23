@@ -22,7 +22,9 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   AppState,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -115,6 +117,36 @@ export default function ActiveSessionScreen() {
 
   // ── Current exercise index (local) ────────────────────────────────────────
   const [exerciseIndex, setExerciseIndex] = useState(0);
+
+  // ── TKT-0051: Slide animation for exercise transitions ────────────────────
+  // slideAnim drives the horizontal offset of the exercise content panel.
+  // It starts at 0 (identity). When navigating forward, we instantly move the
+  // new content off-screen to the right (+SCREEN_WIDTH), then animate to 0.
+  // When navigating backward, content enters from the left (-SCREEN_WIDTH).
+  //
+  // We use useState (not useRef().current) to avoid the react-hooks/refs lint
+  // rule that flags ref.current access during render. The Animated.Value is
+  // stable for the lifetime of the component — useState with a lazy initializer
+  // creates it exactly once without re-instantiating on re-renders.
+  const SCREEN_WIDTH = Dimensions.get('window').width;
+  const [slideAnim] = useState(() => new Animated.Value(0));
+
+  /**
+   * Trigger a slide-in animation. Call BEFORE setting the new exerciseIndex.
+   * `direction`: 'forward' → new content enters from right; 'backward' → from left.
+   */
+  const triggerSlide = useCallback(
+    (direction: 'forward' | 'backward') => {
+      const fromX = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+      slideAnim.setValue(fromX);
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    },
+    [slideAnim, SCREEN_WIDTH],
+  );
 
   // ── PR celebration state ──────────────────────────────────────────────────
   const [prInfo, setPrInfo] = useState<PRInfo | null>(null);
@@ -480,6 +512,7 @@ export default function ActiveSessionScreen() {
     const nextSE = sessionExercises[nextIndex] ?? null;
 
     if (nextSE) {
+      triggerSlide('forward');
       goToNextExercise(db, sessionId, currentSE.id, nextSE.id);
       setExerciseIndex(nextIndex);
     } else {
@@ -490,7 +523,7 @@ export default function ActiveSessionScreen() {
         router.replace(`/session/summary/${sessionId}`);
       });
     }
-  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router, commitNow, confirmFinishIfNeeded]);
+  }, [db, currentSE, sessionId, safeIndex, sessionExercises, router, commitNow, confirmFinishIfNeeded, triggerSlide]);
 
   const handleFinishWorkout = useCallback(() => {
     if (!db || !sessionId) return;
@@ -614,12 +647,18 @@ export default function ActiveSessionScreen() {
   const hasNext = safeIndex < sessionExercises.length - 1;
 
   const handlePrevExercise = useCallback(() => {
-    if (hasPrev) setExerciseIndex(safeIndex - 1);
-  }, [hasPrev, safeIndex]);
+    if (hasPrev) {
+      triggerSlide('backward');
+      setExerciseIndex(safeIndex - 1);
+    }
+  }, [hasPrev, safeIndex, triggerSlide]);
 
   const handleNextExerciseChevron = useCallback(() => {
-    if (hasNext) setExerciseIndex(safeIndex + 1);
-  }, [hasNext, safeIndex]);
+    if (hasNext) {
+      triggerSlide('forward');
+      setExerciseIndex(safeIndex + 1);
+    }
+  }, [hasNext, safeIndex, triggerSlide]);
 
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-60, 60])
@@ -627,8 +666,10 @@ export default function ActiveSessionScreen() {
     .runOnJS(true)
     .onEnd((e) => {
       if (e.translationX < -60 && hasNext) {
+        triggerSlide('forward');
         setExerciseIndex(safeIndex + 1);
       } else if (e.translationX > 60 && hasPrev) {
+        triggerSlide('backward');
         setExerciseIndex(safeIndex - 1);
       }
     });
@@ -758,6 +799,8 @@ export default function ActiveSessionScreen() {
         <View style={styles.body}>
 
           {/* ── Top scrollable panel: exercise header + previous sets ── */}
+          {/* TKT-0051: Animated.View wraps the panel to provide the slide transition */}
+          <Animated.View style={[styles.historyScroll, { transform: [{ translateX: slideAnim }] }]}>
           <ScrollView
             style={styles.historyScroll}
             contentContainerStyle={styles.historyContent}
@@ -882,6 +925,7 @@ export default function ActiveSessionScreen() {
               </View>
             ) : null}
           </ScrollView>
+          </Animated.View>
 
           {/* ── Position dots + chevrons (TKT-0022) ── */}
           <View style={styles.pagerRow}>
@@ -899,7 +943,12 @@ export default function ActiveSessionScreen() {
             <ExercisePager
               total={sessionExercises.length}
               currentIndex={safeIndex}
-              onSelect={(i) => setExerciseIndex(i)}
+              onSelect={(i) => {
+                if (i !== safeIndex) {
+                  triggerSlide(i > safeIndex ? 'forward' : 'backward');
+                  setExerciseIndex(i);
+                }
+              }}
             />
             <Pressable
               onPress={handleNextExerciseChevron}

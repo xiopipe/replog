@@ -36,7 +36,7 @@ export type {
 } from './types';
 
 // Sync utilities
-export { generateId, softDelete, customSynced } from './sync';
+export { generateId, softDelete, restoreItem, customSynced } from './sync';
 
 // Reactive collection read hook (use instead of raw use$ for collections)
 export { useRows } from './use-rows';

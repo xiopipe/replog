@@ -14,7 +14,7 @@
  */
 
 import { useRows } from '@/db';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -38,6 +38,7 @@ import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 import { Button } from '@/components/Button';
 import { MultiSelect } from '@/components/MultiSelect';
 import { getProfile, updateProfile } from '@/features/settings/profile';
+import { shouldShowProfileNudge } from '@/features/onboarding/onboarding';
 
 // ---------------------------------------------------------------------------
 // Small generic toggle row (segmented control with 2–3 options)
@@ -187,10 +188,96 @@ const EXPERIENCE_OPTIONS: ExperienceEnum[] = ['beginner', 'intermediate', 'advan
 
 const WEEKDAY_INDICES = [0, 1, 2, 3, 4, 5, 6];
 
+// ---------------------------------------------------------------------------
+// Profile nudge card (TKT-0044)
+// ---------------------------------------------------------------------------
+
+function ProfileNudgeCard({
+  onTap,
+  onDismiss,
+}: {
+  onTap: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      onPress={onTap}
+      style={nudgeStyles.card}
+      accessibilityRole="button"
+      accessibilityLabel={t('settings.nudge_body')}
+    >
+      <View style={nudgeStyles.content}>
+        <Text style={nudgeStyles.title}>{t('settings.nudge_title')}</Text>
+        <Text style={nudgeStyles.body}>{t('settings.nudge_body')}</Text>
+      </View>
+      <Pressable
+        onPress={onDismiss}
+        style={nudgeStyles.dismissBtn}
+        accessibilityRole="button"
+        accessibilityLabel={t('settings.nudge_dismiss')}
+        hitSlop={8}
+      >
+        <Text style={nudgeStyles.dismissText}>✕</Text>
+      </Pressable>
+    </Pressable>
+  );
+}
+
+const nudgeStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderLeftWidth: 3,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  content: {
+    flex: 1,
+    gap: 2,
+  },
+  title: {
+    ...typography.label,
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  body: {
+    ...typography.label,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  dismissBtn: {
+    minWidth: TOUCH_TARGET,
+    minHeight: TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dismissText: {
+    ...typography.body,
+    color: colors.textTertiary,
+    fontSize: 14,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const { db, session, signOut } = useAuth();
   const userId = session?.user?.id ?? '';
+
+  // TKT-0044: session-scoped nudge dismiss (may reappear next session if profile still incomplete)
+  const [nudgeDismissed, setNudgeDismissed] = useState(false);
+  const profileSectionRef = useRef<ScrollView>(null);
 
   const rawProfiles = useRows(db?.profiles$);
 
@@ -208,6 +295,9 @@ export default function SettingsScreen() {
       </SafeAreaView>
     );
   }
+
+  // TKT-0044: show the nudge card when profile is incomplete and not dismissed
+  const showNudge = !nudgeDismissed && shouldShowProfileNudge(profile);
 
   // Current values (fall back to defaults if profile row not yet synced)
   const unitPref: UnitEnum = profile?.unit_preference ?? 'kg';
@@ -265,10 +355,22 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView
+        ref={profileSectionRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* TKT-0044: Profile completion nudge card */}
+        {showNudge ? (
+          <ProfileNudgeCard
+            onTap={() => {
+              // Scroll to the profile section (top of the Training section)
+              profileSectionRef.current?.scrollTo({ y: 0, animated: true });
+            }}
+            onDismiss={() => setNudgeDismissed(true)}
+          />
+        ) : null}
+
         {/* --- Training preferences --- */}
         <Section title={t('settings.section_training')}>
           <View>

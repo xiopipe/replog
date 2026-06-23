@@ -193,3 +193,22 @@ export function softDelete<T extends { deleted_at?: string | null; updated_at: s
   const entry$ = (collection$ as any)[id];
   entry$.set((prev: T) => ({ ...prev, deleted_at: now, updated_at: now }));
 }
+
+/**
+ * Restore a soft-deleted record by clearing its `deleted_at` timestamp.
+ *
+ * Counterpart to `softDelete` — used for undo-delete (TKT-0051). The record
+ * must still exist in the local observable (i.e. within the undo window before
+ * the next full fetch re-applies the `deleted_at IS NULL` filter).
+ *
+ * @param collection$ - The synced observable (Record<string, T>).
+ * @param id          - The uuid of the row to restore.
+ */
+export function restoreItem<T extends { deleted_at?: string | null; updated_at: string }>(
+  collection$: Observable<Record<string, T>>,
+  id: string,
+): void {
+  const now = new Date().toISOString();
+  const entry$ = (collection$ as any)[id];
+  entry$.set((prev: T) => ({ ...prev, deleted_at: null, updated_at: now }));
+}

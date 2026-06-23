@@ -29,6 +29,8 @@ export interface UpdateProfileInput {
   priority_muscles?: MuscleEnum[] | null;
   limitations?: string | null;
   display_name?: string | null;
+  /** TKT-0043: mark onboarding as complete after the user confirms or explicitly skips. */
+  onboarding_complete?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +100,7 @@ export function updateProfile(
       equipment: patch.equipment ?? null,
       priority_muscles: patch.priority_muscles ?? null,
       limitations: patch.limitations ?? null,
+      onboarding_complete: patch.onboarding_complete ?? false,
       updated_at: now,
     };
     (db.profiles$ as any)[userId].set(newRow);
