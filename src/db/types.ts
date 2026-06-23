@@ -171,6 +171,15 @@ export interface SessionExerciseRow {
   deleted_at: string | null;
 }
 
+// ===================== EXERCISE_FAVORITES =====================
+
+export interface ExerciseFavoriteRow {
+  id: string;
+  user_id: string;
+  exercise_id: string;
+  created_at: string;
+}
+
 // ===================== SETS =====================
 
 export interface SetRow {

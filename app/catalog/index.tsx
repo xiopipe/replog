@@ -2,6 +2,10 @@
  * Catalog list screen.
  * Search + filter by muscle group, shows merged global + user exercises.
  *
+ * TKT-0039: "Favoritos" section (if ≥1) then "Recientes" (last 5) above the
+ * full list; both respect the active muscle/equipment filters; sections are
+ * hidden when they have no results under the active filter.
+ *
  * Picker modes:
  *   pickFor=<routineId>         — routine exercise picker (existing)
  *   pickForSession=<sessionId>  — session "add exercise" picker
@@ -25,17 +29,22 @@ import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { SearchBar } from '@/components/SearchBar';
 import { EmptyState } from '@/components/EmptyState';
 import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
-import type { EquipmentEnum, MuscleEnum } from '@/db';
+import type { EquipmentEnum, MuscleEnum, ExerciseRow, ExerciseMuscleRow } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, spacing, typography, TOUCH_TARGET } from '@/lib/theme';
-import { getFilteredExercises } from '@/features/catalog/queries';
-import { ExerciseRow } from '@/features/catalog/ExerciseRow';
+import { getFilteredExercises, type ExerciseWithMuscles } from '@/features/catalog/queries';
+import { ExerciseRow as ExerciseRowComponent } from '@/features/catalog/ExerciseRow';
 import { EQUIPMENT_KEYS, MUSCLE_KEYS } from '@/features/catalog/constants';
 import { addExerciseToRoutine } from '@/features/routines/mutations';
 import {
   addExerciseToSession,
   swapExercise,
 } from '@/features/session/mutations';
+import {
+  getFavoriteExerciseIds,
+  getRecentExerciseIds,
+  filterExerciseIdsByFilters,
+} from '@/features/catalog/favoritesRecents';
 
 export default function CatalogScreen() {
   const { t } = useTranslation();
@@ -65,9 +74,37 @@ export default function CatalogScreen() {
   const rawUserExercises = useRows(db?.userExercises$);
   const rawUserMuscles = useRows(db?.userExerciseMuscles$);
   const rawRoutineExercises = useRows(db?.routineExercises$);
+  const rawFavorites = useRows(db?.exerciseFavorites$);
+  const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSessions = useRows(db?.workoutSessions$);
 
   const isLoading = globalExercises === null || globalMuscles === null;
 
+  // Combined exercise + muscle maps for filter helpers
+  const allExercisesMap = useMemo<Record<string, ExerciseRow>>(
+    () => ({ ...(globalExercises ?? {}), ...(rawUserExercises ?? {}) }),
+    [globalExercises, rawUserExercises],
+  );
+  const allMusclesMap = useMemo<Record<string, ExerciseMuscleRow>>(
+    () => ({ ...(globalMuscles ?? {}), ...(rawUserMuscles ?? {}) }),
+    [globalMuscles, rawUserMuscles],
+  );
+
+  // TKT-0039: Favorites — filtered by active muscle/equipment filters
+  const filteredFavoriteIds = useMemo(() => {
+    if (rawFavorites == null) return [];
+    const favIds = Array.from(getFavoriteExerciseIds(rawFavorites));
+    return filterExerciseIdsByFilters(favIds, allExercisesMap, allMusclesMap, filterMuscle, filterEquipment);
+  }, [rawFavorites, allExercisesMap, allMusclesMap, filterMuscle, filterEquipment]);
+
+  // TKT-0039: Recents — last 5 distinct exercises, filtered by active filters
+  const filteredRecentIds = useMemo(() => {
+    if (rawSessionExercises == null || rawSessions == null) return [];
+    const recentIds = getRecentExerciseIds(rawSessionExercises, rawSessions, 5);
+    return filterExerciseIdsByFilters(recentIds, allExercisesMap, allMusclesMap, filterMuscle, filterEquipment);
+  }, [rawSessionExercises, rawSessions, allExercisesMap, allMusclesMap, filterMuscle, filterEquipment]);
+
+  // Build ExerciseWithMuscles lookup from the filtered exercise list
   const exercises = useMemo(
     () =>
       getFilteredExercises(
@@ -88,6 +125,48 @@ export default function CatalogScreen() {
       filterMuscle,
       filterEquipment,
     ],
+  );
+
+  // Favorites and recents exercises resolved as ExerciseWithMuscles
+  // We build a separate full (no search filter) lookup for section items
+  const allFilteredExercises = useMemo(
+    () =>
+      getFilteredExercises(
+        globalExercises ?? {},
+        rawUserExercises ?? {},
+        globalMuscles ?? {},
+        rawUserMuscles ?? {},
+        '', // no search filter for sections
+        filterMuscle,
+        filterEquipment,
+      ),
+    [globalExercises, rawUserExercises, globalMuscles, rawUserMuscles, filterMuscle, filterEquipment],
+  );
+
+  const allFilteredById = useMemo<Record<string, ExerciseWithMuscles>>(() => {
+    const map: Record<string, ExerciseWithMuscles> = {};
+    for (const ex of allFilteredExercises) map[ex.id] = ex;
+    return map;
+  }, [allFilteredExercises]);
+
+  // Section items for favorites and recents (only shown when no search text)
+  const favoriteItems = useMemo<ExerciseWithMuscles[]>(
+    () =>
+      search
+        ? []
+        : filteredFavoriteIds.map((id) => allFilteredById[id]).filter(Boolean) as ExerciseWithMuscles[],
+    [search, filteredFavoriteIds, allFilteredById],
+  );
+
+  const recentItems = useMemo<ExerciseWithMuscles[]>(
+    () =>
+      search
+        ? []
+        : filteredRecentIds
+            .filter((id) => !filteredFavoriteIds.includes(id)) // don't duplicate with favorites
+            .map((id) => allFilteredById[id])
+            .filter(Boolean) as ExerciseWithMuscles[],
+    [search, filteredRecentIds, filteredFavoriteIds, allFilteredById],
   );
 
   const chipOptions: ChipOption[] = useMemo(
@@ -130,7 +209,6 @@ export default function CatalogScreen() {
     if (!db || !session) return;
 
     if (pickFor) {
-      // Routine exercise picker (existing behaviour)
       const existing = Object.values(rawRoutineExercises ?? {}).filter(
         (re) => re.routine_id === pickFor && !re.deleted_at,
       );
@@ -148,19 +226,27 @@ export default function CatalogScreen() {
     }
 
     if (pickForSession) {
-      // Session "add exercise" picker
       addExerciseToSession(db, pickForSession, exerciseId, session.user.id);
       router.back();
       return;
     }
 
     if (swapSession && swapSE) {
-      // Session "swap exercise" picker
       swapExercise(db, swapSE, exerciseId);
       router.back();
       return;
     }
   };
+
+  const handlePressExercise = (exerciseId: string) => {
+    if (isPickerMode) {
+      handlePickerSelect(exerciseId);
+    } else {
+      router.push(`/catalog/${exerciseId}`);
+    }
+  };
+
+  const showSections = !search && (favoriteItems.length > 0 || recentItems.length > 0);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -201,7 +287,7 @@ export default function CatalogScreen() {
         />
       </View>
 
-      {/* Filter chips: muscle group, then equipment (combined with AND logic) */}
+      {/* Filter chips: muscle group, then equipment */}
       <FilterChips
         options={chipOptions}
         selected={chipSelected}
@@ -226,6 +312,46 @@ export default function CatalogScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListHeaderComponent={
+            showSections ? (
+              <View style={styles.sectionsContainer}>
+                {/* TKT-0039: Favorites section */}
+                {favoriteItems.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>{t('catalog_sections.favorites')}</Text>
+                    {favoriteItems.map((item, idx) => (
+                      <View key={item.id}>
+                        {idx > 0 && <View style={styles.separator} />}
+                        <ExerciseRowComponent
+                          exercise={item}
+                          onPress={() => handlePressExercise(item.id)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* TKT-0039: Recents section */}
+                {recentItems.length > 0 && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionLabel}>{t('catalog_sections.recents')}</Text>
+                    {recentItems.map((item, idx) => (
+                      <View key={item.id}>
+                        {idx > 0 && <View style={styles.separator} />}
+                        <ExerciseRowComponent
+                          exercise={item}
+                          onPress={() => handlePressExercise(item.id)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Divider before full list */}
+                <View style={styles.fullListDivider} />
+              </View>
+            ) : null
+          }
           ListEmptyComponent={
             <EmptyState
               message={
@@ -236,13 +362,9 @@ export default function CatalogScreen() {
             />
           }
           renderItem={({ item }) => (
-            <ExerciseRow
+            <ExerciseRowComponent
               exercise={item}
-              onPress={
-                isPickerMode
-                  ? () => handlePickerSelect(item.id)
-                  : () => router.push(`/catalog/${item.id}`)
-              }
+              onPress={() => handlePressExercise(item.id)}
             />
           )}
         />
@@ -296,5 +418,26 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: spacing.sm,
+  },
+  // TKT-0039: sections
+  sectionsContainer: {
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  section: {
+    gap: spacing.xs,
+  },
+  sectionLabel: {
+    ...typography.label,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+    fontSize: 11,
+  },
+  fullListDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
 });

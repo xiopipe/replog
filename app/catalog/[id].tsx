@@ -2,6 +2,11 @@
  * Exercise detail screen.
  * Shows the muscle figure, instructions ("How to" tab), and best 1RM card.
  * History tab: past sets for this exercise + best estimated 1RM.
+ *
+ * TKT-0036: Instructions from seed data rendered here.
+ * TKT-0038: Best-mark card is tappable → navigates to history tab.
+ * TKT-0039: Favorite toggle in header.
+ * TKT-0040: History tab shows PR indicators + session rows tap to /history/[id].
  */
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -17,7 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useRows, globalExercises$, globalExerciseMuscles$ } from '@/db';
+import { useRows, globalExercises$, globalExerciseMuscles$, generateId } from '@/db';
 import type { SetRow as SetRowData } from '@/db';
 import { useAuth } from '@/lib/auth';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
@@ -28,6 +33,15 @@ import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { getExerciseHistorySets, getUserUnitPreference } from '@/features/session/queries';
 import { estimated1RM } from '@/lib/hypertrophy';
+import { formatWeight } from '@/features/session/weight-format';
+import {
+  buildExerciseHistorySessions,
+  type HistorySession,
+} from '@/features/catalog/exerciseHistory';
+import {
+  findFavoriteRow,
+  buildFavoriteRow,
+} from '@/features/catalog/favoritesRecents';
 
 type TabKey = 'how_to' | 'history';
 
@@ -47,7 +61,9 @@ export default function ExerciseDetailScreen() {
   const rawUserMuscles = useRows(db?.userExerciseMuscles$);
   const rawSets = useRows(db?.sets$);
   const rawSessionExercises = useRows(db?.sessionExercises$);
+  const rawSessions = useRows(db?.workoutSessions$);
   const rawProfiles = useRows(db?.profiles$);
+  const rawFavorites = useRows(db?.exerciseFavorites$);
 
   const exercise = useMemo(
     () =>
@@ -91,19 +107,35 @@ export default function ExerciseDetailScreen() {
     return best > 0 ? best : null;
   }, [historySets]);
 
-  // Group history sets by session_exercise_id to show per-session grouping
-  // Sort sets descending by performed_at (most recent first)
-  const sortedHistory = useMemo<SetRowData[]>(
+  // TKT-0040: group history sets by session with PR detection
+  const historySessions = useMemo<HistorySession[]>(
     () =>
-      [...historySets].sort((a, b) =>
-        b.performed_at.localeCompare(a.performed_at),
-      ),
-    [historySets],
+      rawSets != null && rawSessionExercises != null && rawSessions != null
+        ? buildExerciseHistorySessions(historySets, rawSessionExercises, rawSessions)
+        : [],
+    [historySets, rawSets, rawSessionExercises, rawSessions],
   );
 
+  // TKT-0039: favorite state
+  const favoriteRow = useMemo(
+    () => (rawFavorites != null ? findFavoriteRow(rawFavorites, id) : null),
+    [rawFavorites, id],
+  );
+  const isFavorited = favoriteRow != null;
+
+  const handleToggleFavorite = () => {
+    if (!db) return;
+    if (isFavorited && favoriteRow) {
+      // Hard-delete the favorite row
+      (db.exerciseFavorites$ as any)[favoriteRow.id].delete();
+    } else {
+      const newId = generateId();
+      const row = buildFavoriteRow(userId, id, newId);
+      (db.exerciseFavorites$ as any)[newId].set(row);
+    }
+  };
+
   // Show a loading indicator while the global observables haven't synced yet.
-  // Without this guard, a valid exercise id would falsely hit the not-found
-  // empty state because globalExercises/globalMuscles are null before first sync.
   if (globalExercises == null || globalMuscles == null) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -154,7 +186,21 @@ export default function ExerciseDetailScreen() {
         <Text style={styles.headerTitle} numberOfLines={1} accessibilityRole="header">
           {exercise.name}
         </Text>
-        <View style={styles.backButton} />
+        {/* TKT-0039: Favorite toggle */}
+        <Pressable
+          onPress={handleToggleFavorite}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('exercise.favorite_toggle')}
+          accessibilityState={{ checked: isFavorited }}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={isFavorited ? 'star' : 'star-outline'}
+            size={22}
+            color={isFavorited ? colors.warning : colors.textTertiary}
+          />
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -219,25 +265,38 @@ export default function ExerciseDetailScreen() {
 
         {activeTab === 'how_to' && (
           <>
-            {/* Instructions */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('exercise.how_to_label')}</Text>
-              <Text style={styles.instructions}>
-                {exercise.instructions ?? t('exercise.no_instructions')}
-              </Text>
-            </View>
+            {/* TKT-0036: Instructions — omit section when null (custom exercises) */}
+            {exercise.instructions != null && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('exercise.how_to_label')}</Text>
+                <Text style={styles.instructions}>{exercise.instructions}</Text>
+              </View>
+            )}
 
-            {/* Best 1RM card */}
-            <Card style={styles.card1rm}>
-              <Text style={styles.card1rmLabel}>{t('exercise.best_mark')}</Text>
-              {bestE1RM != null ? (
-                <Text style={styles.card1rmValue}>
-                  {`${Math.round(bestE1RM * 10) / 10} ${userUnit}`}
-                </Text>
-              ) : (
+            {/* TKT-0038: Best 1RM card — tappable when history exists */}
+            {bestE1RM != null ? (
+              <Pressable
+                onPress={() => setActiveTab('history')}
+                style={({ pressed }) => [styles.card1rmPressable, pressed && { opacity: 0.75 }]}
+                accessibilityRole="button"
+                accessibilityLabel={t('exercise.best_mark_tap_hint')}
+              >
+                <Card style={styles.card1rm}>
+                  <View style={styles.card1rmContent}>
+                    <Text style={styles.card1rmLabel}>{t('exercise.best_mark')}</Text>
+                    <Text style={styles.card1rmValue}>
+                      {`${Math.round(bestE1RM * 10) / 10} ${userUnit}`}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                </Card>
+              </Pressable>
+            ) : (
+              <Card style={styles.card1rm}>
+                <Text style={styles.card1rmLabel}>{t('exercise.best_mark')}</Text>
                 <Text style={styles.card1rmEmpty}>{t('exercise.no_records')}</Text>
-              )}
-            </Card>
+              </Card>
+            )}
 
             {/* View history button */}
             <Button
@@ -250,7 +309,7 @@ export default function ExerciseDetailScreen() {
         )}
 
         {activeTab === 'history' && (
-          sortedHistory.length === 0 ? (
+          historySessions.length === 0 ? (
             <EmptyState message={t('exercise.no_records')} />
           ) : (
             <View style={styles.historySection}>
@@ -264,28 +323,53 @@ export default function ExerciseDetailScreen() {
                 </Card>
               )}
 
-              {/* Set history list */}
+              {/* TKT-0040: Set history grouped by session */}
               <Text style={styles.historyListTitle}>{t('exercise.history_sets_title')}</Text>
-              {sortedHistory.map((s) => {
-                const weightDisplay =
-                  s.weight_value != null
-                    ? `${s.weight_value} ${s.weight_unit ?? userUnit}`
-                    : `—`;
-                const rirLabel =
-                  s.failure_metric === 'rir' && s.rir != null
-                    ? ` @ ${s.rir} ${t('session.rir_label')}`
-                    : s.failure_metric === 'rpe' && s.rpe != null
-                    ? ` @ ${t('session.rpe_label')} ${s.rpe}`
-                    : '';
-                const date = new Date(s.performed_at);
+
+              {historySessions.map((hs) => {
+                const date = new Date(hs.startedAt);
                 const dateStr = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+
                 return (
-                  <View key={s.id} style={styles.historySetRow}>
-                    <Text style={styles.historySetMain}>
-                      {`${weightDisplay} × ${s.reps ?? '—'}${rirLabel}`}
-                    </Text>
-                    <Text style={styles.historySetDate}>{dateStr}</Text>
-                  </View>
+                  /* TKT-0040: tap session row → navigate to session detail */
+                  <Pressable
+                    key={hs.sessionId}
+                    onPress={() => router.push(`/history/${hs.sessionId}`)}
+                    style={({ pressed }) => [
+                      styles.sessionGroup,
+                      pressed && { opacity: 0.75 },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('exercise.history_session_tap_hint')}
+                  >
+                    <View style={styles.sessionHeader}>
+                      <Text style={styles.sessionDate}>{dateStr}</Text>
+                      <Ionicons name="chevron-forward" size={14} color={colors.textTertiary} />
+                    </View>
+
+                    {hs.sets.map(({ set, isPR }) => {
+                      const weightDisplay = formatWeight(set, userUnit);
+                      const rirLabel =
+                        set.failure_metric === 'rir' && set.rir != null
+                          ? ` @ ${set.rir} ${t('session.rir_label')}`
+                          : set.failure_metric === 'rpe' && set.rpe != null
+                          ? ` @ ${t('session.rpe_label')} ${set.rpe}`
+                          : '';
+                      return (
+                        <View key={set.id} style={styles.historySetRow}>
+                          <Text style={styles.historySetMain}>
+                            {`${weightDisplay} × ${set.reps ?? '—'}${rirLabel}`}
+                          </Text>
+                          {/* TKT-0040: PR indicator */}
+                          {isPR && (
+                            <View style={styles.prBadge}>
+                              <Text style={styles.prBadgeText}>{t('exercise.pr_badge')}</Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </Pressable>
                 );
               })}
             </View>
@@ -399,12 +483,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
   },
-  card1rm: {
+  // TKT-0038: pressable wrapper for the best-mark card
+  card1rmPressable: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
+  },
+  card1rm: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  card1rmContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginRight: spacing.sm,
   },
   card1rmLabel: {
     ...typography.label,
@@ -437,21 +531,54 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: spacing.sm,
   },
+  // TKT-0040: session grouping
+  sessionGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: spacing.xs,
+  },
+  sessionDate: {
+    ...typography.label,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    fontSize: 12,
+  },
   historySetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: spacing.xs,
   },
   historySetMain: {
     ...typography.body,
     color: colors.textPrimary,
+    flex: 1,
   },
-  historySetDate: {
+  // TKT-0040: PR badge
+  prBadge: {
+    backgroundColor: colors.prIconBg,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    marginLeft: spacing.sm,
+  },
+  prBadgeText: {
     ...typography.label,
-    color: colors.textTertiary,
-    fontSize: 12,
+    color: colors.prText,
+    fontWeight: '600',
+    fontSize: 11,
   },
 });
