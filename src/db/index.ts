@@ -25,6 +25,7 @@ export type {
   ProfileRow,
   ExerciseRow,
   ExerciseMuscleRow,
+  ExerciseFavoriteRow,
   RoutineRow,
   RoutineExerciseRow,
   PlanRow,
@@ -63,3 +64,4 @@ export { createPlanDaysObservable } from './plan_days';
 export { createWorkoutSessionsObservable } from './workout_sessions';
 export { createSessionExercisesObservable } from './session_exercises';
 export { createSetsObservable } from './sets';
+export { createExerciseFavoritesObservable } from './exercise_favorites';

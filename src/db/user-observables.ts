@@ -41,6 +41,7 @@ import { createPlanDaysObservable } from './plan_days';
 import { createWorkoutSessionsObservable } from './workout_sessions';
 import { createSessionExercisesObservable } from './session_exercises';
 import { createSetsObservable } from './sets';
+import { createExerciseFavoritesObservable } from './exercise_favorites';
 
 // ---------------------------------------------------------------------------
 // Global (read-only) catalog observables — created once, uid-independent
@@ -82,6 +83,8 @@ export interface UserObservables {
   sessionExercises$: ReturnType<typeof createSessionExercisesObservable>;
   /** Per-set records (excludes deleted). */
   sets$: ReturnType<typeof createSetsObservable>;
+  /** User's favorited exercises (keyed by favorite row id). */
+  exerciseFavorites$: ReturnType<typeof createExerciseFavoritesObservable>;
 }
 
 /**
@@ -102,6 +105,7 @@ export function createUserObservables(uid: string): UserObservables {
     workoutSessions$: createWorkoutSessionsObservable(uid),
     sessionExercises$: createSessionExercisesObservable(uid),
     sets$: createSetsObservable(uid),
+    exerciseFavorites$: createExerciseFavoritesObservable(uid),
   };
 
   // Synced observables are lazy: they only start syncing once observed. A
@@ -121,6 +125,7 @@ export function createUserObservables(uid: string): UserObservables {
     db.workoutSessions$.get();
     db.sessionExercises$.get();
     db.sets$.get();
+    db.exerciseFavorites$.get();
   });
 
   return db;

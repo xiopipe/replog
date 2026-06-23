@@ -100,14 +100,23 @@
     "how_to_label": "Cómo hacerlo",
     "no_instructions": "Sin instrucciones disponibles.",
     "best_mark": "Mejor marca (1RM est.)",
+    "best_mark_tap_hint": "Ver historial completo de este ejercicio",
     "no_records": "Sin registros aún",
     "view_history": "Ver historial completo",
     "history_sets_title": "Series anteriores",
+    "history_session_tap_hint": "Abrir detalle de la sesión",
+    "pr_badge": "PR",
     "primary_label": "Principal",
     "secondary_label": "Secundario",
     "figure_front": "Vista frontal del cuerpo",
     "figure_back": "Vista posterior del cuerpo",
-    "bodyweight_badge": "Peso corporal"
+    "bodyweight_badge": "Peso corporal",
+    "favorite_toggle": "Añadir o quitar de favoritos",
+    "favorited": "En favoritos"
+  },
+  "catalog_sections": {
+    "favorites": "Favoritos",
+    "recents": "Recientes"
   },
   "create_exercise": {
     "title": "Nuevo ejercicio",
