@@ -5,6 +5,14 @@
  * All values persist to the user's profile row via updateProfile() from
  * src/features/settings/profile.ts — written to the local observable (offline-first).
  *
+ * TKT-0067 additions:
+ *   - Show "Crear cuenta" / "Iniciar sesión" CTA for local-only and anonymous users (criteria 10, 11)
+ *   - Hide CTA for registered/permanent accounts
+ *   - Anonymous sign-out → confirmation dialog with data-loss warning (criterion 13)
+ *   - Registered sign-out → plain sign-out, no warning (criterion 14)
+ *   - Hide sign-out for local-only users (criterion, per resolved decision C)
+ *   - Render guest display-name placeholder when display_name is null (criterion 16)
+ *
  * Design-UX.md §Settings:
  *   kg/lb unit toggle
  *   default_failure_metric (rir/rpe/none)
@@ -18,6 +26,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,6 +44,7 @@ import type {
   UnitEnum,
 } from '@/db';
 import { useAuth } from '@/lib/auth';
+import { getAuthVariant, getSettingsAccountState } from '@/lib/rekey';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
 import { Button } from '@/components/Button';
 import { MultiSelect } from '@/components/MultiSelect';
@@ -273,22 +283,31 @@ const nudgeStyles = StyleSheet.create({
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
-  const { db, session, signOut } = useAuth();
-  const userId = session?.user?.id ?? '';
+  const { db, session, signOut, activeUid, cloudUid, isAnonymousUser } = useAuth();
   const router = useRouter();
+
+  // Derive account UI state (criteria 10, 11, 13, 14).
+  const authVariant = getAuthVariant(cloudUid !== null, isAnonymousUser);
+  const accountState = getSettingsAccountState(authVariant);
+
+  // TKT-0067 criterion 16: safe display name — fallback to guest placeholder.
+  const displayName = session?.user?.email ?? null;
 
   // TKT-0044: session-scoped nudge dismiss (may reappear next session if profile still incomplete)
   const [nudgeDismissed, setNudgeDismissed] = useState(false);
   const profileSectionRef = useRef<ScrollView>(null);
 
+  // For settings, use activeUid (which is cloudUid ?? localUid) for profile lookup.
+  const profileUserId = activeUid;
+
   const rawProfiles = useRows(db?.profiles$);
 
   const profile = useMemo(
-    () => (rawProfiles ? getProfile(rawProfiles, userId) : null),
-    [rawProfiles, userId],
+    () => (rawProfiles ? getProfile(rawProfiles, profileUserId) : null),
+    [rawProfiles, profileUserId],
   );
 
-  if (!db || rawProfiles == null) {
+  if (rawProfiles == null) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.center}>
@@ -314,7 +333,7 @@ export default function SettingsScreen() {
   // Helper
   const save = (patch: Parameters<typeof updateProfile>[2]) => {
     if (!db) return;
-    updateProfile(db, userId, patch);
+    updateProfile(db, profileUserId, patch);
   };
 
   const unitOptions: SegmentOption<UnitEnum>[] = [
@@ -347,6 +366,34 @@ export default function SettingsScreen() {
     key: String(i),
     label: t(`weekdays.${i}`),
   }));
+
+  // ---------------------------------------------------------------------------
+  // Sign-out handler — distinguishes anonymous (warn dialog) from permanent
+  // ---------------------------------------------------------------------------
+
+  function handleSignOut() {
+    if (accountState.requireSignOutConfirmation) {
+      // Criterion 13: anonymous guest — warn about data loss.
+      Alert.alert(
+        t('auth.logout'),
+        t('auth.guest_signout_warning'),
+        [
+          {
+            text: t('auth.guest_signout_cancel'),
+            style: 'cancel',
+          },
+          {
+            text: t('auth.guest_signout_confirm'),
+            style: 'destructive',
+            onPress: () => signOut(),
+          },
+        ],
+      );
+    } else {
+      // Criterion 14: permanent account — plain sign-out, no warning.
+      signOut();
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -514,14 +561,49 @@ export default function SettingsScreen() {
           </Pressable>
         </Section>
 
-        {/* --- Account --- */}
+        {/* --- Account (TKT-0067) --- */}
         <Section title={t('settings.account')}>
-          <Text style={styles.emailLabel}>{session?.user?.email ?? ''}</Text>
-          <Button
-            label={t('auth.logout')}
-            variant="secondary"
-            onPress={() => signOut()}
-          />
+          {/*
+           * Criterion 16: display name with null-safe fallback.
+           * For anonymous guests, display_name is null — show localised placeholder.
+           * For permanent accounts, show email.
+           */}
+          <Text style={styles.emailLabel}>
+            {displayName ?? t('auth.guest_display_name')}
+          </Text>
+
+          {/*
+           * Criteria 10, 11: show "Crear cuenta" / "Iniciar sesión" for local-only
+           * and anonymous users. Hidden for permanent accounts.
+           */}
+          {accountState.showCloudAdoptionCta ? (
+            <View style={styles.cloudCtaRow}>
+              <Button
+                label={t('auth.create_account_cta')}
+                variant="primary"
+                onPress={() => router.push('/(auth)/login')}
+              />
+              <Button
+                label={t('auth.sign_in_cta')}
+                variant="secondary"
+                onPress={() => router.push('/(auth)/login')}
+              />
+            </View>
+          ) : null}
+
+          {/*
+           * Criteria 13, 14: sign-out button.
+           * Hidden for local-only users (nothing to sign out of).
+           * Anonymous guest → shows warning dialog.
+           * Permanent → plain sign-out.
+           */}
+          {accountState.showSignOut ? (
+            <Button
+              label={t('auth.logout')}
+              variant="secondary"
+              onPress={handleSignOut}
+            />
+          ) : null}
         </Section>
       </ScrollView>
     </SafeAreaView>
@@ -591,6 +673,9 @@ const styles = StyleSheet.create({
   emailLabel: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  cloudCtaRow: {
+    gap: spacing.sm,
   },
 });
 
