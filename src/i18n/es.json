@@ -172,6 +172,7 @@
     "exercises_count": "{{count}} ejercicio",
     "exercises_count_one": "{{count}} ejercicio",
     "exercises_count_other": "{{count}} ejercicios",
+    "duration_label": "{{duration}}",
     "delete_confirm": "¿Eliminar esta rutina?",
     "delete_hint": "Eliminar rutina"
   },
@@ -275,7 +276,14 @@
     "relative_time_days_other": "{{count}} d",
     "relative_time_yesterday": "ayer",
     "today_rest_card_title": "Día de descanso",
-    "today_rest_cta": "¿Quieres entrenar igualmente?"
+    "today_rest_cta": "¿Quieres entrenar igualmente?",
+    "start_free_workout": "Empezar entreno libre",
+    "routine_picker_title": "Elige una rutina",
+    "routine_picker_empty": "Aún no tienes rutinas.",
+    "routine_picker_create": "Crear rutina",
+    "estimated_duration": "~{{minutes}}min",
+    "estimated_duration_hours": "~{{h}}h {{m}}min",
+    "estimated_duration_unknown": "—"
   },
   "session": {
     "exercise_progress": "Ejercicio {{current}} de {{total}}",
@@ -303,6 +311,10 @@
     "menu_skip_exercise": "Saltar ejercicio",
     "menu_group_superset": "Agrupar como superserie",
     "menu_group_dropset": "Agrupar como dropset",
+    "menu_reorder_exercises": "Reordenar ejercicios",
+    "reorder_title": "Reordenar ejercicios",
+    "reorder_hint": "Mantén pulsado para arrastrar",
+    "reorder_drag_hint": "Arrastrar {{name}}",
     "skip_confirm": "¿Saltar este ejercicio?",
     "skip_yes": "Saltar",
     "warmup_label": "Calentamiento",
