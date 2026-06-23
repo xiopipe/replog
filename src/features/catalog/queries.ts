@@ -75,17 +75,13 @@ export function getFilteredExercises(
   ].filter((e) => !e.deleted_at);
 
   // Build a lookup: exercise_id → muscles
-  // Deduplicate by row id before building the lookup: globalExerciseMuscles$ and
-  // db.userExerciseMuscles$ are both RLS-scoped, so after sync they can contain
-  // the same rows, producing duplicates that inflate volume counts and figure colors.
-  const seenMuscleIds = new Set<string>();
-  const allMuscles: ExerciseMuscleRow[] = [];
-  for (const m of [...Object.values(globalMuscles), ...Object.values(userMuscles)]) {
-    if (!seenMuscleIds.has(m.id)) {
-      seenMuscleIds.add(m.id);
-      allMuscles.push(m);
-    }
-  }
+  // TKT-0066: globalMuscles and userMuscles are now disjoint (each observable
+  // filters by user_id IS NULL vs user_id = uid via the exercise_muscles_with_user
+  // view). No client-side dedup is needed.
+  const allMuscles: ExerciseMuscleRow[] = [
+    ...Object.values(globalMuscles),
+    ...Object.values(userMuscles),
+  ];
   const musclesByExercise: Record<string, ExerciseMuscleInfo[]> = {};
   for (const m of allMuscles) {
     if (!musclesByExercise[m.exercise_id]) {
@@ -128,22 +124,19 @@ export function getFilteredExercises(
 
 /**
  * Get muscles for a single exercise_id (merges global + user muscle maps).
+ *
+ * TKT-0066: observables are now disjoint (filtered via exercise_muscles_with_user
+ * view), so no dedup is required.
  */
 export function getMusclesForExercise(
   globalMuscles: Record<string, ExerciseMuscleRow>,
   userMuscles: Record<string, ExerciseMuscleRow>,
   exerciseId: string,
 ): ExerciseMuscleInfo[] {
-  // Deduplicate by row id: both observables are RLS-scoped and can hold the same
-  // rows after sync, which would double-count muscles for the same exercise.
-  const seenIds = new Set<string>();
-  const allMuscles: ExerciseMuscleRow[] = [];
-  for (const m of [...Object.values(globalMuscles), ...Object.values(userMuscles)]) {
-    if (!seenIds.has(m.id)) {
-      seenIds.add(m.id);
-      allMuscles.push(m);
-    }
-  }
+  const allMuscles: ExerciseMuscleRow[] = [
+    ...Object.values(globalMuscles),
+    ...Object.values(userMuscles),
+  ];
   return allMuscles
     .filter((m) => m.exercise_id === exerciseId)
     .map((m) => ({ muscle: m.muscle, role: m.role, contribution: m.contribution }));

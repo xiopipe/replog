@@ -292,7 +292,15 @@
     "routine_picker_create": "Crear rutina",
     "estimated_duration": "~{{minutes}}min",
     "estimated_duration_hours": "~{{h}}h {{m}}min",
-    "estimated_duration_unknown": "—"
+    "estimated_duration_unknown": "—",
+    "recovery_banner_label": "Sesión en progreso",
+    "recovery_banner_chip": "Sesión en progreso — {{routineName}} · {{elapsed}}",
+    "recovery_banner_chip_no_routine": "Sesión en progreso — {{elapsed}}",
+    "discard_action": "Descartar",
+    "discard_confirm_title": "¿Descartar esta sesión?",
+    "discard_confirm_body": "Se eliminarán todas las series registradas.",
+    "discard_confirm_yes": "Descartar",
+    "discard_confirm_cancel": "Cancelar"
   },
   "session": {
     "exercise_progress": "Ejercicio {{current}} de {{total}}",
@@ -377,6 +385,12 @@
     "duplicate_same": "Igual",
     "duplicate_plus_rep": "+1 rep",
     "duplicate_plus_weight": "+peso (2.5 kg)"
+  },
+  "sync": {
+    "offline_banner": "Sin conexión — los cambios se guardan localmente y se sincronizarán al reconectar",
+    "error_title": "Error de sincronización",
+    "error_body": "Hubo un problema al sincronizar tus datos. Se reintentará automáticamente.",
+    "error_a11y": "Error de sincronización. Toca para ver detalles."
   },
   "duration": {
     "hours_minutes": "{{h}} h {{m}} m",

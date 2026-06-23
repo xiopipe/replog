@@ -29,6 +29,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -48,6 +49,8 @@ import {
   startSessionFromRoutine,
   repeatLastSession,
 } from '@/features/session/mutations';
+import { discardSession } from '@/features/session/discardSession';
+import { isSessionStale } from '@/features/session/activeTime';
 import { estimatedDurationMinutes, formatEstimatedDuration } from '@/lib/estimatedDuration';
 import { RoutinePickerSheet } from '@/features/routines/RoutinePickerSheet';
 import type { RoutineRow, RoutineExerciseRow, WorkoutSessionRow } from '@/db';
@@ -97,7 +100,7 @@ export function computeRelativeElapsed(startedAt: string, now: Date = new Date()
 }
 
 // ---------------------------------------------------------------------------
-// Context chip for in-progress session
+// Context chip for in-progress session (legacy — kept for small contexts)
 // ---------------------------------------------------------------------------
 
 interface InProgressChipProps {
@@ -139,6 +142,57 @@ function InProgressChip({ session, routineName, todayIndex }: InProgressChipProp
     >
       {chipText}
     </Text>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recovery banner — TKT-0049
+// ---------------------------------------------------------------------------
+
+interface RecoveryBannerProps {
+  session: WorkoutSessionRow;
+  routineName: string | null;
+  onResume: () => void;
+  onDiscard: () => void;
+}
+
+function RecoveryBanner({ session, routineName, onResume, onDiscard }: RecoveryBannerProps) {
+  const { t } = useTranslation();
+
+  const elapsed = computeRelativeElapsed(session.started_at);
+  const elapsedStr = t(elapsed.key, { count: elapsed.count });
+
+  const bannerText = routineName
+    ? t('home.recovery_banner_chip', { routineName, elapsed: elapsedStr })
+    : t('home.recovery_banner_chip_no_routine', { elapsed: elapsedStr });
+
+  return (
+    <View style={styles.recoveryBanner} accessibilityRole="alert">
+      <Text style={styles.recoveryBannerLabel}>
+        {t('home.recovery_banner_label')}
+      </Text>
+      <Text style={styles.recoveryBannerChip} numberOfLines={2}>
+        {bannerText}
+      </Text>
+      <View style={styles.recoveryActions}>
+        <Pressable
+          onPress={onResume}
+          style={[styles.resumeBtn, styles.recoveryActionFlex]}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.resume_workout')}
+        >
+          <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={onDiscard}
+          style={styles.discardBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.discard_action')}
+        >
+          <Text style={styles.discardBtnText}>{t('home.discard_action')}</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -187,6 +241,14 @@ export default function HomeScreen() {
     () => getActiveSession(rawSessions ?? {}),
     [rawSessions],
   );
+
+  // TKT-0049: stale check for the active session.
+  // mountNow captures the timestamp at component mount — same pattern as
+  // app/session/[id].tsx. We do not need sub-second accuracy for the 4h threshold.
+  const [mountNow] = useState(() => Date.now());
+  const activeSessionIsStale = activeSession
+    ? isSessionStale(activeSession.started_at, mountNow)
+    : false;
 
   // Check if there's any completed session for "repeat last"
   const hasCompletedSession = useMemo(() => {
@@ -263,6 +325,27 @@ export default function HomeScreen() {
     }
   };
 
+  // TKT-0049: Discard the in-progress session after confirmation
+  const handleDiscardSession = () => {
+    if (!db || !activeSession) return;
+    Alert.alert(
+      t('home.discard_confirm_title'),
+      t('home.discard_confirm_body'),
+      [
+        { text: t('home.discard_confirm_cancel'), style: 'cancel' },
+        {
+          text: t('home.discard_confirm_yes'),
+          style: 'destructive',
+          onPress: () => {
+            if (db && activeSession) {
+              discardSession(db, activeSession.id);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // ── Loading ───────────────────────────────────────────────────────────────
 
   if (isLoading) {
@@ -296,21 +379,33 @@ export default function HomeScreen() {
           {/* TKT-0058: CTA anchored to bottom via flex spacer above */}
           <View style={styles.ctaAnchor}>
             {activeSession ? (
-              <View style={styles.resumeBlock}>
-                <Pressable
-                  onPress={handleResumeSession}
-                  style={styles.resumeBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('home.resume_workout')}
-                >
-                  <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
-                </Pressable>
-                <InProgressChip
+              activeSessionIsStale ? (
+                /* Stale session → Resume navigates to session screen where
+                   StaleSessionModal fires (TKT-0011). No Discard here. */
+                <View style={styles.resumeBlock}>
+                  <Pressable
+                    onPress={handleResumeSession}
+                    style={styles.resumeBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('home.resume_workout')}
+                  >
+                    <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+                  </Pressable>
+                  <InProgressChip
+                    session={activeSession}
+                    routineName={activeSessionRoutineName}
+                    todayIndex={todayIndex}
+                  />
+                </View>
+              ) : (
+                /* TKT-0049: Non-stale recovery banner with Discard action */
+                <RecoveryBanner
                   session={activeSession}
                   routineName={activeSessionRoutineName}
-                  todayIndex={todayIndex}
+                  onResume={handleResumeSession}
+                  onDiscard={handleDiscardSession}
                 />
-              </View>
+              )
             ) : (
               <Button
                 label={t('home.choose_template')}
@@ -426,22 +521,33 @@ export default function HomeScreen() {
          */}
         <View style={styles.ctaAnchor}>
           {activeSession ? (
-            /* Case A — Resume */
-            <View style={styles.resumeBlock}>
-              <Pressable
-                onPress={handleResumeSession}
-                style={styles.resumeBtn}
-                accessibilityRole="button"
-                accessibilityLabel={t('home.resume_workout')}
-              >
-                <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
-              </Pressable>
-              <InProgressChip
+            /* Case A — Resume / Recovery */
+            activeSessionIsStale ? (
+              /* Stale → let StaleSessionModal handle it in the session screen */
+              <View style={styles.resumeBlock}>
+                <Pressable
+                  onPress={handleResumeSession}
+                  style={styles.resumeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('home.resume_workout')}
+                >
+                  <Text style={styles.resumeBtnText}>{t('home.resume_workout')}</Text>
+                </Pressable>
+                <InProgressChip
+                  session={activeSession}
+                  routineName={activeSessionRoutineName}
+                  todayIndex={todayIndex}
+                />
+              </View>
+            ) : (
+              /* TKT-0049: Prominent recovery banner with Discard action */
+              <RecoveryBanner
                 session={activeSession}
                 routineName={activeSessionRoutineName}
-                todayIndex={todayIndex}
+                onResume={handleResumeSession}
+                onDiscard={handleDiscardSession}
               />
-            </View>
+            )
           ) : todayHasRoutine ? (
             /* Case B — Start today's routine */
             <Pressable
@@ -747,5 +853,52 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     paddingHorizontal: spacing.md,
+  },
+
+  // TKT-0049: Recovery banner — visually distinct, prominent
+  recoveryBanner: {
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: colors.success,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  recoveryBannerLabel: {
+    ...typography.label,
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  recoveryBannerChip: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recoveryActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  recoveryActionFlex: {
+    flex: 1,
+  },
+  discardBtn: {
+    flex: 1,
+    minHeight: TOUCH_TARGET,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  discardBtnText: {
+    ...typography.body,
+    color: colors.error,
+    fontSize: 14,
   },
 });

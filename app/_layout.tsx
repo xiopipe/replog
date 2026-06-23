@@ -6,12 +6,14 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import '@/lib/i18n';
 import { colors } from '@/lib/theme';
+import { OfflineBanner } from '@/features/sync/OfflineBanner';
 
 function RootNavigator() {
   const { session, initializing } = useAuth();
@@ -38,23 +40,27 @@ function RootNavigator() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="catalog/index" />
-      <Stack.Screen name="catalog/[id]" />
-      <Stack.Screen name="catalog/create" />
-      <Stack.Screen name="routines/index" />
-      <Stack.Screen name="routines/editor" />
-      <Stack.Screen name="plan/index" />
-      <Stack.Screen name="plan/templates" />
-      {/* Session routes — tab bar intentionally hidden (not inside (tabs)) */}
-      <Stack.Screen name="session/[id]" />
-      <Stack.Screen name="session/summary/[id]" />
-      <Stack.Screen name="session/retroactive" />
-      {/* History detail route */}
-      <Stack.Screen name="history/[id]" />
-    </Stack>
+    <View style={styles.navigatorWrapper}>
+      {/* TKT-0048: Global offline banner — shown below status bar on all screens */}
+      <OfflineBanner />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="catalog/index" />
+        <Stack.Screen name="catalog/[id]" />
+        <Stack.Screen name="catalog/create" />
+        <Stack.Screen name="routines/index" />
+        <Stack.Screen name="routines/editor" />
+        <Stack.Screen name="plan/index" />
+        <Stack.Screen name="plan/templates" />
+        {/* Session routes — tab bar intentionally hidden (not inside (tabs)) */}
+        <Stack.Screen name="session/[id]" />
+        <Stack.Screen name="session/summary/[id]" />
+        <Stack.Screen name="session/retroactive" />
+        {/* History detail route */}
+        <Stack.Screen name="history/[id]" />
+      </Stack>
+    </View>
   );
 }
 
@@ -78,5 +84,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  navigatorWrapper: {
+    flex: 1,
   },
 });

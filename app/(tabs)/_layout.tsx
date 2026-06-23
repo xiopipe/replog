@@ -1,25 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '@/lib/theme';
+import { SyncStatusIndicator } from '@/features/sync/SyncStatusIndicator';
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: colors.background },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-        },
-      }}
-    >
+    <View style={styles.root}>
+      {/* TKT-0047: Sync status indicator — floats top-right above the tab content */}
+      <View style={[styles.syncOverlay, { top: insets.top + 6 }]}>
+        <SyncStatusIndicator />
+      </View>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: colors.background },
+          tabBarActiveTintColor: colors.accent,
+          tabBarInactiveTintColor: colors.textTertiary,
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+          },
+        }}
+      >
       <Tabs.Screen
         name="index"
         options={{
@@ -48,6 +57,17 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />,
         }}
       />
-    </Tabs>
+      </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  syncOverlay: {
+    position: 'absolute',
+    right: 0,
+    zIndex: 100,
+    pointerEvents: 'box-none',
+  },
+});
