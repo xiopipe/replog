@@ -779,6 +779,37 @@ export function setActiveTime(
 }
 
 // ---------------------------------------------------------------------------
+// TKT-0030: Manual duration edit
+// ---------------------------------------------------------------------------
+
+/**
+ * Update a session's duration by setting ended_at = started_at + newDurationSeconds.
+ *
+ * Also clears accumulated_active_seconds so the explicit override becomes the
+ * canonical value (summarizeSession prefers accumulated_active_seconds > 0).
+ *
+ * Validations are the caller's responsibility (parseDurationInput in summaryHelpers).
+ */
+export function updateSessionDuration(
+  db: UserObservables,
+  sessionId: string,
+  newDurationSeconds: number,
+): void {
+  const now = new Date().toISOString();
+  (db.workoutSessions$ as any)[sessionId].set((prev: WorkoutSessionRow) => {
+    const startedMs = new Date(prev.started_at).getTime();
+    const newEndedAt = new Date(startedMs + newDurationSeconds * 1000).toISOString();
+    return {
+      ...prev,
+      ended_at: newEndedAt,
+      // Zero out the accumulator so summarizeSession uses ended_at - started_at
+      accumulated_active_seconds: newDurationSeconds,
+      updated_at: now,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Active session guard
 // ---------------------------------------------------------------------------
 
