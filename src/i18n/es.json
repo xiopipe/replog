@@ -89,7 +89,23 @@
     "limitations_placeholder": "Ej: Dolor lumbar, no sentadillas…",
     "nudge_title": "Completa tu perfil",
     "nudge_body": "Personaliza la app para mejores recomendaciones — toca aquí.",
-    "nudge_dismiss": "Cerrar"
+    "nudge_dismiss": "Cerrar",
+    "notifications_row": "Notificaciones",
+    "notif_title": "Notificaciones",
+    "notif_master_label": "Activar notificaciones",
+    "notif_permission_prompt": "Activa los permisos para recibir notificaciones",
+    "notif_permission_denied": "Permiso denegado permanentemente. Abre los Ajustes del sistema para activarlo.",
+    "notif_open_system_settings": "Abrir ajustes del sistema",
+    "notif_section_reminders": "Recordatorios de entreno",
+    "notif_reminders_label": "Recordatorio de entreno",
+    "notif_reminders_hint": "Te avisamos en los días de tu plan.",
+    "notif_reminder_time_label": "Hora del recordatorio",
+    "notif_section_other": "Otros",
+    "notif_inactivity_label": "Recordatorio de inactividad",
+    "notif_inactivity_hint": "Si llevas 3 días sin entrenar, te mandamos un empujón.",
+    "notif_pr_label": "Celebrar récords",
+    "notif_pr_hint": "Notificación al superar un récord personal.",
+    "notif_disabled_master_off": "Activa las notificaciones principales para gestionar este ajuste."
   },
   "catalog": {
     "title": "Ejercicios",
@@ -405,6 +421,22 @@
     "error_title": "Error de sincronización",
     "error_body": "Hubo un problema al sincronizar tus datos. Se reintentará automáticamente.",
     "error_a11y": "Error de sincronización. Toca para ver detalles."
+  },
+  "notifications": {
+    "reminder": {
+      "title": "¡Hora de entrenar!",
+      "body": "Tienes {{routineName}} en el plan de hoy. ¡Vamos!"
+    },
+    "inactivity": {
+      "title": "Te echamos de menos",
+      "body": "Llevas {{days}} días sin entrenar. ¿Hoy volvemos?"
+    },
+    "pr": {
+      "title_1rm": "¡Nuevo récord de 1RM est.!",
+      "body_1rm": "{{exercise}} · {{weight}} {{unit}} × {{reps}} reps",
+      "title_rep": "¡Nuevo récord de reps!",
+      "body_rep": "{{exercise}} · {{reps}} reps con {{weight}} {{unit}}"
+    }
   },
   "duration": {
     "hours_minutes": "{{h}} h {{m}} m",

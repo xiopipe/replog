@@ -30,6 +30,29 @@ export type SessionStatusEnum = 'in_progress' | 'completed';
 
 // ===================== PROFILES =====================
 
+/**
+ * TKT-0062: Notification preferences shape stored as JSONB in profiles.notification_prefs.
+ * All sub-fields are optional for forward-compatibility; defaults are applied by the app.
+ */
+export interface NotificationPrefs {
+  /** Master switch — all notification types off when false. Default: false. */
+  enabled?: boolean;
+  workoutReminders?: {
+    /** Whether workout reminder notifications are scheduled. Default: true. */
+    enabled?: boolean;
+    /** Local time string "HH:mm" (24h). Default: "18:00". */
+    time?: string;
+  };
+  inactivity?: {
+    /** Whether the inactivity re-engagement notification is scheduled. Default: true. */
+    enabled?: boolean;
+  };
+  prCelebration?: {
+    /** Whether PR celebration notifications fire. Default: true. */
+    enabled?: boolean;
+  };
+}
+
 export interface ProfileRow {
   id: string; // = auth.uid()
   display_name: string | null;
@@ -43,6 +66,8 @@ export interface ProfileRow {
   limitations: string | null;
   /** TKT-0043: true once the user has completed or dismissed the post-register onboarding prompt. */
   onboarding_complete: boolean;
+  /** TKT-0062: notification preferences (JSONB, additive migration). Empty object = all defaults. */
+  notification_prefs?: NotificationPrefs | null;
   created_at: string;
   updated_at: string;
   // profiles has no deleted_at in the schema

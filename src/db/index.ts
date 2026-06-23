@@ -22,6 +22,7 @@ export type {
   MuscleEnum,
   MuscleRoleEnum,
   SessionStatusEnum,
+  NotificationPrefs,
   ProfileRow,
   ExerciseRow,
   ExerciseMuscleRow,

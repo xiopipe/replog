@@ -13,7 +13,7 @@
  *   (profiles$ as any)[id].set(row)
  */
 
-import type { UserObservables, ProfileRow, UnitEnum, FailureMetricEnum, MuscleEnum, ExperienceEnum } from '@/db';
+import type { UserObservables, ProfileRow, UnitEnum, FailureMetricEnum, MuscleEnum, ExperienceEnum, NotificationPrefs } from '@/db';
 
 // ---------------------------------------------------------------------------
 // Input types
@@ -31,6 +31,8 @@ export interface UpdateProfileInput {
   display_name?: string | null;
   /** TKT-0043: mark onboarding as complete after the user confirms or explicitly skips. */
   onboarding_complete?: boolean;
+  /** TKT-0062: notification preferences persisted to the JSONB column on profiles. */
+  notification_prefs?: NotificationPrefs | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import { shouldShowOnboarding } from '@/features/onboarding/onboarding';
 import { getProfile, updateProfile } from '@/features/settings/profile';
 import { useRows } from '@/db';
 import type { FailureMetricEnum, UnitEnum } from '@/db';
+import { useNotificationSetup } from '@/features/notifications/useNotificationSetup';
 
 // ---------------------------------------------------------------------------
 // OnboardingGate — mounted with key=userId so it auto-resets on user change.
@@ -82,6 +83,10 @@ function RootNavigator() {
   const segments = useSegments();
   const router = useRouter();
 
+  // TKT-0062/0063/0064: set up Android channel, foreground handler, and
+  // reactive reminder/inactivity scheduling. Only active when db is available.
+  useNotificationSetup();
+
   useEffect(() => {
     if (initializing) return;
     const inAuthGroup = segments[0] === '(auth)';
@@ -121,6 +126,8 @@ function RootNavigator() {
         <Stack.Screen name="session/retroactive" />
         {/* History detail route */}
         <Stack.Screen name="history/[id]" />
+        {/* Notification settings (TKT-0062) */}
+        <Stack.Screen name="settings/notifications" />
       </Stack>
 
       {/*
