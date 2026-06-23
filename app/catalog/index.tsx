@@ -354,6 +354,11 @@ export default function CatalogScreen() {
           }
           ListEmptyComponent={
             <EmptyState
+              icon={
+                search || filterMuscle || filterEquipment
+                  ? 'search-outline'
+                  : 'barbell-outline'
+              }
               message={
                 search || filterMuscle || filterEquipment
                   ? t('catalog.empty_search')

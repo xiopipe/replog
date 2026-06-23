@@ -56,6 +56,15 @@
     "edit_date": "Editar fecha",
     "delete_set_confirm": "¿Eliminar esta serie? Esta acción no se puede deshacer."
   },
+  "onboarding": {
+    "title": "Personaliza tu experiencia",
+    "subtitle": "Dos preguntas rápidas para adaptar la app a ti.",
+    "unit_label": "¿Qué unidad de peso usas?",
+    "metric_label": "¿Cómo mides el esfuerzo?",
+    "metric_hint": "Opcional — puedes cambiarlo en Ajustes.",
+    "confirm": "Guardar preferencias",
+    "skip": "Ahora no"
+  },
   "settings": {
     "title": "Ajustes",
     "unit": "Unidad de peso",
@@ -77,7 +86,10 @@
     "equipment": "Equipamiento disponible",
     "priority_muscles": "Músculos prioritarios",
     "limitations": "Limitaciones / lesiones",
-    "limitations_placeholder": "Ej: Dolor lumbar, no sentadillas…"
+    "limitations_placeholder": "Ej: Dolor lumbar, no sentadillas…",
+    "nudge_title": "Completa tu perfil",
+    "nudge_body": "Personaliza la app para mejores recomendaciones — toca aquí.",
+    "nudge_dismiss": "Cerrar"
   },
   "catalog": {
     "title": "Ejercicios",
@@ -86,7 +98,7 @@
     "all_equipment": "Todo",
     "filter_by_muscle": "Filtrar por grupo muscular",
     "filter_by_equipment": "Filtrar por equipamiento",
-    "empty_search": "Sin resultados para esta búsqueda.",
+    "empty_search": "No se encontraron ejercicios. Prueba otro filtro.",
     "empty_catalog": "No hay ejercicios en el catálogo.",
     "add_exercise": "Nuevo ejercicio",
     "error_load": "No se pudo cargar el catálogo.",
@@ -183,7 +195,9 @@
     "exercises_count_other": "{{count}} ejercicios",
     "duration_label": "{{duration}}",
     "delete_confirm": "¿Eliminar esta rutina?",
-    "delete_hint": "Eliminar rutina"
+    "delete_hint": "Eliminar rutina",
+    "undo_delete": "Rutina eliminada",
+    "undo_action": "Deshacer"
   },
   "routine_editor": {
     "title_create": "Nueva rutina",

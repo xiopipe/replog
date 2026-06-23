@@ -1,10 +1,13 @@
 /**
  * Routines list screen — shows user's routines with entry to create/edit.
  * This is the main content when navigating from the Routines tab.
+ *
+ * TKT-0051: After the existing confirmation dialog soft-deletes a routine,
+ * a 3-second "Deshacer" snackbar appears; tapping it clears deleted_at to restore.
  */
-import { useRows } from '@/db';
+import { useRows, restoreItem } from '@/db';
 import { useRouter } from 'expo-router';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -24,6 +27,7 @@ import { getRoutines } from '@/features/routines/queries';
 import { deleteRoutine } from '@/features/routines/mutations';
 import type { RoutineRow } from '@/db';
 import { EmptyState } from '@/components/EmptyState';
+import { Snackbar } from '@/components/Snackbar';
 
 export default function RoutinesListScreen() {
   const { t } = useTranslation();
@@ -32,6 +36,9 @@ export default function RoutinesListScreen() {
 
   const rawRoutines = useRows(db?.routines$);
   const rawRoutineExercises = useRows(db?.routineExercises$);
+
+  // TKT-0051: track the last deleted routine id for undo
+  const [undoRoutineId, setUndoRoutineId] = useState<string | null>(null);
 
   const isLoading = rawRoutines === undefined || rawRoutines === null;
 
@@ -62,11 +69,23 @@ export default function RoutinesListScreen() {
         {
           text: t('common.delete'),
           style: 'destructive',
-          onPress: () => deleteRoutine(db, routine.id),
+          onPress: () => {
+            // Soft-delete immediately (the existing filter excludes it from the list)
+            deleteRoutine(db, routine.id);
+            // Show undo snackbar
+            setUndoRoutineId(routine.id);
+          },
         },
       ],
     );
   };
+
+  // TKT-0051: restore the soft-deleted routine within the undo window
+  const handleUndo = useCallback(() => {
+    if (!db || !undoRoutineId) return;
+    restoreItem(db.routines$, undoRoutineId);
+    setUndoRoutineId(null);
+  }, [db, undoRoutineId]);
 
   if (isLoading) {
     return (
@@ -120,6 +139,16 @@ export default function RoutinesListScreen() {
             t={t}
           />
         )}
+      />
+
+      {/* TKT-0051: Undo snackbar */}
+      <Snackbar
+        visible={!!undoRoutineId}
+        message={t('routines.undo_delete')}
+        actionLabel={t('routines.undo_action')}
+        onAction={handleUndo}
+        onDismiss={() => setUndoRoutineId(null)}
+        durationMs={3000}
       />
     </SafeAreaView>
   );

@@ -41,6 +41,8 @@ export interface ProfileRow {
   equipment: string[] | null;
   priority_muscles: MuscleEnum[] | null;
   limitations: string | null;
+  /** TKT-0043: true once the user has completed or dismissed the post-register onboarding prompt. */
+  onboarding_complete: boolean;
   created_at: string;
   updated_at: string;
   // profiles has no deleted_at in the schema

@@ -36,6 +36,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
@@ -364,7 +365,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.container}>
-          <ScrollView contentContainerStyle={styles.scroll}>
+          <ScrollView contentContainerStyle={[styles.scroll, styles.scrollGrow]}>
             <View style={styles.greetingRow}>
               {displayName ? (
                 <Text style={styles.greeting}>
@@ -372,8 +373,14 @@ export default function HomeScreen() {
                 </Text>
               ) : null}
             </View>
-            <Text style={styles.headline}>{t('home.no_plan_title')}</Text>
-            <Text style={styles.noPlanSub}>{t('home.no_plan_cta')}</Text>
+            {/* TKT-0051: Illustrated empty state for "no plan yet" */}
+            <View style={styles.noPlanIllustration}>
+              <View style={styles.noPlanIconWrapper}>
+                <Ionicons name="calendar-outline" size={64} color={colors.textTertiary} />
+              </View>
+              <Text style={styles.headline}>{t('home.no_plan_title')}</Text>
+              <Text style={styles.noPlanSub}>{t('home.no_plan_cta')}</Text>
+            </View>
           </ScrollView>
 
           {/* TKT-0058: CTA anchored to bottom via flex spacer above */}
@@ -661,6 +668,18 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
 
+  scrollGrow: { flexGrow: 1 },
+  noPlanIllustration: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.md,
+  },
+  noPlanIconWrapper: {
+    opacity: 0.45,
+    marginBottom: spacing.sm,
+  },
   greetingRow: { gap: 2 },
   greeting: {
     ...typography.label,
