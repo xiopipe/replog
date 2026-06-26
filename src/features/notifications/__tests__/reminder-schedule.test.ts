@@ -106,6 +106,7 @@ const makeRoutine = (id: string, name: string, deleted = false): RoutineRow => (
   user_id: 'u1',
   name,
   notes: null,
+  source_template_id: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
   deleted_at: deleted ? '2026-01-02T00:00:00Z' : null,

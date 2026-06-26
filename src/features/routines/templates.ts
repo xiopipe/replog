@@ -30,6 +30,7 @@ const FULLBODY_EXERCISES = [
 ];
 
 export const TEMPLATE_FULLBODY: Template = {
+  templateKey: 'fullbody',
   planName: 'Full body 3 días',
   routines: [
     { name: 'Full body A', weekday: 0, exercises: FULLBODY_EXERCISES }, // Monday
@@ -43,6 +44,7 @@ export const TEMPLATE_FULLBODY: Template = {
 // ---------------------------------------------------------------------------
 
 export const TEMPLATE_UPPER_LOWER: Template = {
+  templateKey: 'upper_lower',
   planName: 'Upper / Lower',
   routines: [
     {
@@ -129,6 +131,7 @@ const LEGS_A = [
 ];
 
 export const TEMPLATE_PPL: Template = {
+  templateKey: 'ppl',
   planName: 'PPL (Push / Pull / Legs)',
   routines: [
     { name: 'Push A',  weekday: 0, exercises: PUSH_A }, // Monday
