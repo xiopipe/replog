@@ -53,6 +53,7 @@ import {
   getUserDefaultFailureMetric,
   countExercisesWithoutWorkingSets,
 } from '@/features/session/queries';
+import { resolveIncrement } from '@/features/session/setRowHelpers';
 import { toCanonicalKg, estimated1RM, kgToLb } from '@/lib/hypertrophy';
 import {
   addSet,
@@ -274,6 +275,12 @@ export default function ActiveSessionScreen() {
     [rawProfiles, userId],
   );
 
+  // TKT-0016: configured weight increment — resolved against the user's current unit.
+  const weightIncrement: number = useMemo(() => {
+    const profile = rawProfiles ? rawProfiles[userId] : null;
+    return resolveIncrement(profile?.weight_increment ?? null, userUnit);
+  }, [rawProfiles, userId, userUnit]);
+
   // ── TKT-0014: Last session sets ───────────────────────────────────────────
   const lastSessionSets = useMemo(() => {
     if (!rawSets || !rawSessionExercises || !rawSessions || !currentSE) return [];
@@ -475,13 +482,13 @@ export default function ActiveSessionScreen() {
           onPress: () => handleDuplicateVariant(0, 1),
         },
         {
-          text: t('session.duplicate_plus_weight'),
-          onPress: () => handleDuplicateVariant(2.5, 0),
+          text: t('session.duplicate_plus_weight', { increment: weightIncrement, unit: userUnit }),
+          onPress: () => handleDuplicateVariant(weightIncrement, 0),
         },
         { text: t('common.cancel'), style: 'cancel' },
       ],
     );
-  }, [currentSets, t, handleDuplicateVariant]);
+  }, [currentSets, t, handleDuplicateVariant, weightIncrement, userUnit]);
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -897,6 +904,7 @@ export default function ActiveSessionScreen() {
                 isBodyweight={currentExercise?.is_bodyweight ?? false}
                 defaultFailureMetric={defaultFailureMetric}
                 userUnit={userUnit}
+                weightIncrement={weightIncrement}
                 isSelected={dropsetSelection.has(set.id)}
                 onConfirm={(patch) =>
                   handleConfirmSet(set.id, patch, currentExercise?.id ?? currentSE?.exercise_id ?? '')

@@ -111,7 +111,9 @@
     "notif_inactivity_hint": "Si llevas 3 días sin entrenar, te mandamos un empujón.",
     "notif_pr_label": "Celebrar récords",
     "notif_pr_hint": "Notificación al superar un récord personal.",
-    "notif_disabled_master_off": "Activa las notificaciones principales para gestionar este ajuste."
+    "notif_disabled_master_off": "Activa las notificaciones principales para gestionar este ajuste.",
+    "weight_increment": "Incremento de peso",
+    "weight_increment_a11y": "Incremento de peso por paso"
   },
   "catalog": {
     "title": "Ejercicios",
@@ -420,7 +422,7 @@
     "target_met": "Objetivo alcanzado",
     "duplicate_same": "Igual",
     "duplicate_plus_rep": "+1 rep",
-    "duplicate_plus_weight": "+peso (2.5 kg)"
+    "duplicate_plus_weight": "+peso ({{increment}} {{unit}})"
   },
   "sync": {
     "offline_banner": "Sin conexión — los cambios se guardan localmente y se sincronizarán al reconectar",

@@ -5,7 +5,7 @@
  * unit-tested in the jest node environment.
  */
 
-import type { FailureMetricEnum } from '@/db';
+import type { FailureMetricEnum, UnitEnum } from '@/db';
 
 // ---------------------------------------------------------------------------
 // TKT-0061 — RIR/RPE unset-placeholder stepper logic
@@ -89,6 +89,60 @@ export interface DuplicateVariant {
   label: string; // i18n key suffix — caller wraps with t()
   weightDelta: number; // kg delta (0 for same/+1rep, default 2.5 for +weight)
   repsDelta: number;  // reps delta
+}
+
+// ---------------------------------------------------------------------------
+// TKT-0016 — Configurable weight increment
+// ---------------------------------------------------------------------------
+
+/** Valid increment choices for kg. */
+export const WEIGHT_INCREMENT_OPTIONS_KG = [1.25, 2.5, 5] as const;
+/** Valid increment choices for lb. */
+export const WEIGHT_INCREMENT_OPTIONS_LB = [2.5, 5, 10] as const;
+
+/**
+ * Return the ordered list of valid increment choices for the given unit.
+ */
+export function getIncrementOptions(unit: UnitEnum): readonly number[] {
+  return unit === 'lb' ? WEIGHT_INCREMENT_OPTIONS_LB : WEIGHT_INCREMENT_OPTIONS_KG;
+}
+
+/**
+ * Default increment per unit (matches historical hard-coded value of 2.5).
+ */
+export function defaultIncrement(unit: UnitEnum): number {
+  // Both kg and lb default to 2.5 (matches the historical hard-coded stepper value).
+  return 2.5;
+}
+
+/**
+ * Resolve the effective increment to use in the stepper.
+ *
+ * If `stored` is null/undefined or is not one of the valid options for `unit`,
+ * fall back to `defaultIncrement(unit)`.
+ */
+export function resolveIncrement(stored: number | null | undefined, unit: UnitEnum): number {
+  const options = getIncrementOptions(unit);
+  if (stored != null && (options as readonly number[]).includes(stored)) {
+    return stored;
+  }
+  return defaultIncrement(unit);
+}
+
+/**
+ * Apply +increment to `current`, flooring at 0.
+ *
+ * Rounds to 4 significant decimal places to avoid float drift (e.g. 1.25 + 1.25 = 2.5, not 2.4999999).
+ */
+export function applyIncrement(current: number, increment: number): number {
+  return Math.round((current + increment) * 10000) / 10000;
+}
+
+/**
+ * Apply −increment to `current`, flooring at 0 (bodyweight sets can be 0).
+ */
+export function applyDecrement(current: number, increment: number): number {
+  return Math.max(0, Math.round((current - increment) * 10000) / 10000);
 }
 
 /**

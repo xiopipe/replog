@@ -33,6 +33,8 @@ export interface UpdateProfileInput {
   onboarding_complete?: boolean;
   /** TKT-0062: notification preferences persisted to the JSONB column on profiles. */
   notification_prefs?: NotificationPrefs | null;
+  /** TKT-0016: global weight increment for the +/− stepper (in the user's current unit). */
+  weight_increment?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,7 @@ export function updateProfile(
       priority_muscles: patch.priority_muscles ?? null,
       limitations: patch.limitations ?? null,
       onboarding_complete: patch.onboarding_complete ?? false,
+      weight_increment: patch.weight_increment ?? 2.5,
       updated_at: now,
     };
     (db.profiles$ as any)[userId].set(newRow);

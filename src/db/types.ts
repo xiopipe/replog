@@ -68,6 +68,14 @@ export interface ProfileRow {
   onboarding_complete: boolean;
   /** TKT-0062: notification preferences (JSONB, additive migration). Empty object = all defaults. */
   notification_prefs?: NotificationPrefs | null;
+  /**
+   * TKT-0016: configured weight increment for the +/− stepper, stored in the
+   * user's current display unit.  Default 2.5 (matches historical hard-coded
+   * value).  Valid values depend on unit_preference:
+   *   kg  → 1.25 | 2.5 | 5
+   *   lb  → 2.5  | 5   | 10
+   */
+  weight_increment?: number | null;
   created_at: string;
   updated_at: string;
   // profiles has no deleted_at in the schema
