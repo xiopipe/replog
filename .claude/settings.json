@@ -17,5 +17,19 @@
       "Read(.env.*)"
     ]
   },
-  "enableAllProjectMcpServers": true
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/session-retro-nudge.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }
