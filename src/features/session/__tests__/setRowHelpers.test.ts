@@ -12,6 +12,10 @@ import {
   countWorkingSets,
   isTargetMet,
   getDuplicateVariants,
+  getIncrementOptions,
+  resolveIncrement,
+  applyIncrement,
+  applyDecrement,
 } from '@/features/session/setRowHelpers';
 
 // ---------------------------------------------------------------------------
@@ -157,5 +161,82 @@ describe('getDuplicateVariants', () => {
   it('respects custom weight increment', () => {
     const plusWeight = getDuplicateVariants(5).find((v) => v.label === 'duplicate_plus_weight');
     expect(plusWeight?.weightDelta).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// TKT-0016 — Weight increment helpers
+// ---------------------------------------------------------------------------
+
+describe('getIncrementOptions', () => {
+  it('returns [1.25, 2.5, 5] for kg', () => {
+    expect(getIncrementOptions('kg')).toEqual([1.25, 2.5, 5]);
+  });
+
+  it('returns [2.5, 5, 10] for lb', () => {
+    expect(getIncrementOptions('lb')).toEqual([2.5, 5, 10]);
+  });
+});
+
+describe('resolveIncrement', () => {
+  it('returns stored value when it is in the option list for kg', () => {
+    expect(resolveIncrement(1.25, 'kg')).toBe(1.25);
+    expect(resolveIncrement(2.5, 'kg')).toBe(2.5);
+    expect(resolveIncrement(5, 'kg')).toBe(5);
+  });
+
+  it('returns stored value when it is in the option list for lb', () => {
+    expect(resolveIncrement(2.5, 'lb')).toBe(2.5);
+    expect(resolveIncrement(5, 'lb')).toBe(5);
+    expect(resolveIncrement(10, 'lb')).toBe(10);
+  });
+
+  it('falls back to default (2.5) when stored value not in current unit options', () => {
+    // 1.25 is a valid kg increment but NOT a valid lb increment
+    expect(resolveIncrement(1.25, 'lb')).toBe(2.5);
+    // 10 is a valid lb increment but NOT a valid kg increment
+    expect(resolveIncrement(10, 'kg')).toBe(2.5);
+  });
+
+  it('falls back to default when stored is null', () => {
+    expect(resolveIncrement(null, 'kg')).toBe(2.5);
+    expect(resolveIncrement(null, 'lb')).toBe(2.5);
+  });
+
+  it('falls back to default when stored is undefined', () => {
+    expect(resolveIncrement(undefined, 'kg')).toBe(2.5);
+  });
+});
+
+describe('applyIncrement', () => {
+  it('adds increment to current value', () => {
+    expect(applyIncrement(10, 2.5)).toBe(12.5);
+    expect(applyIncrement(0, 5)).toBe(5);
+  });
+
+  it('handles fractional increment (1.25) without float drift', () => {
+    expect(applyIncrement(1.25, 1.25)).toBe(2.5);
+    expect(applyIncrement(0, 1.25)).toBe(1.25);
+  });
+
+  it('handles lb increment of 10', () => {
+    expect(applyIncrement(100, 10)).toBe(110);
+  });
+});
+
+describe('applyDecrement', () => {
+  it('subtracts increment from current value', () => {
+    expect(applyDecrement(10, 2.5)).toBe(7.5);
+    expect(applyDecrement(5, 5)).toBe(0);
+  });
+
+  it('floors at 0 (bodyweight sets)', () => {
+    expect(applyDecrement(2, 5)).toBe(0);
+    expect(applyDecrement(0, 2.5)).toBe(0);
+  });
+
+  it('handles fractional decrement (1.25) without float drift', () => {
+    expect(applyDecrement(2.5, 1.25)).toBe(1.25);
+    expect(applyDecrement(1.25, 1.25)).toBe(0);
   });
 });

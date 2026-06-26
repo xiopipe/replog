@@ -43,6 +43,7 @@ import type {
   MuscleEnum,
   UnitEnum,
 } from '@/db';
+import { getIncrementOptions, resolveIncrement } from '@/features/session/setRowHelpers';
 import { useAuth } from '@/lib/auth';
 import { getAuthVariant, getSettingsAccountState } from '@/lib/rekey';
 import { colors, radius, spacing, TOUCH_TARGET, typography } from '@/lib/theme';
@@ -323,6 +324,9 @@ export default function SettingsScreen() {
   // Current values (fall back to defaults if profile row not yet synced)
   const unitPref: UnitEnum = profile?.unit_preference ?? 'kg';
   const failureMetric: FailureMetricEnum = profile?.default_failure_metric ?? 'rir';
+  // TKT-0016: weight increment — resolved against the current unit (graceful fallback if stored
+  // value is not in the current unit's option list, e.g. after a unit switch).
+  const weightIncrement: number = resolveIncrement(profile?.weight_increment ?? null, unitPref);
   const experienceLevel: ExperienceEnum | null = profile?.experience_level ?? null;
   const availableDays: number = profile?.available_days_per_week ?? 3;
   const preferredWeekdays: number[] = profile?.preferred_weekdays ?? [];
@@ -346,6 +350,14 @@ export default function SettingsScreen() {
     { value: 'rpe', label: t('settings.metric_rpe') },
     { value: 'none', label: t('settings.metric_none') },
   ];
+
+  // TKT-0016: weight increment choices for the current unit.
+  // Values are numbers but SegmentedControl is generic over string; we use String(n) as the
+  // segment value and parse back on change.
+  const incrementOptions: SegmentOption<string>[] = getIncrementOptions(unitPref).map((v) => ({
+    value: String(v),
+    label: String(v),
+  }));
 
   const experienceOptions: SegmentOption<ExperienceEnum>[] = EXPERIENCE_OPTIONS.map((v) => ({
     value: v,
@@ -439,6 +451,17 @@ export default function SettingsScreen() {
               value={failureMetric}
               onChange={(v) => save({ default_failure_metric: v })}
               accessibilityLabel={t('settings.failure_metric')}
+            />
+          </View>
+
+          {/* TKT-0016: weight increment */}
+          <View>
+            <RowLabel label={t('settings.weight_increment')} />
+            <SegmentedControl
+              options={incrementOptions}
+              value={String(weightIncrement)}
+              onChange={(v) => save({ weight_increment: parseFloat(v) })}
+              accessibilityLabel={t('settings.weight_increment_a11y')}
             />
           </View>
         </Section>

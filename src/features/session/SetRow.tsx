@@ -33,6 +33,8 @@ import { parseDecimalFloat } from '@/lib/parseDecimal';
 import {
   incrementFailureVal,
   decrementFailureVal,
+  applyIncrement,
+  applyDecrement,
 } from './setRowHelpers';
 import { RirGuideModal } from './RirGuideModal';
 
@@ -42,6 +44,11 @@ export interface SetRowProps {
   isBodyweight: boolean;
   defaultFailureMetric: FailureMetricEnum;
   userUnit: UnitEnum;
+  /**
+   * TKT-0016: configured weight increment for the +/− stepper.
+   * Defaults to 2.5 to preserve previous behaviour when not provided.
+   */
+  weightIncrement?: number;
   isSelected?: boolean;
   onConfirm: (patch: Partial<SetRowData>) => void;
   onDelete?: () => void;
@@ -249,6 +256,7 @@ export function SetRow({
   isBodyweight,
   defaultFailureMetric,
   userUnit,
+  weightIncrement = 2.5,
   isSelected,
   onConfirm,
   onDelete,
@@ -358,15 +366,13 @@ export function SetRow({
           onChangeText={setWeightStr}
           onIncrement={() => {
             const cur = isNaN(parsedWeight) ? 0 : parsedWeight;
-            const next = cur + 2.5;
-            setWeightStr(String(Math.round(next * 4) / 4));
+            setWeightStr(String(applyIncrement(cur, weightIncrement)));
           }}
           onDecrement={() => {
             const cur = isNaN(parsedWeight) ? 0 : parsedWeight;
-            const next = Math.max(0, cur - 2.5);
-            setWeightStr(String(Math.round(next * 4) / 4));
+            setWeightStr(String(applyDecrement(cur, weightIncrement)));
           }}
-          step={2.5}
+          step={weightIncrement}
           minValue={0}
           allowDecimal
           label={weightLabel}
