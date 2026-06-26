@@ -17,6 +17,7 @@ import {
   type PlanRow,
   type PlanDayRow,
 } from '@/db';
+import { selectOrphanIds } from './template-cleanup';
 
 // ---------------------------------------------------------------------------
 // Routines
@@ -40,6 +41,7 @@ export function createRoutine(db: UserObservables, input: CreateRoutineInput): s
     user_id: input.userId,
     name: input.name.trim(),
     notes: input.notes?.trim() || null,
+    source_template_id: null, // manually created — never auto-deleted on template change
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -314,13 +316,25 @@ export interface TemplateRoutine {
 export interface Template {
   planName: string;
   routines: TemplateRoutine[];
+  /**
+   * TKT-0002: Stable identifier for this template (e.g. 'ppl', 'full-body-3').
+   * Stored as `source_template_id` on every routine created by this call so
+   * the runtime can distinguish template-cloned routines from manually created ones.
+   * Must be unique per template and never change (it is persisted in the DB).
+   */
+  templateKey: string;
 }
 
 /**
  * Clone a template into the user's account:
- *   1. Create one plan (active; deactivates others).
- *   2. For each template routine: create the routine + routine_exercises + plan_day.
- *   3. Exercises are resolved by name from the globalExercises snapshot.
+ *   1. Soft-delete the previous active plan's template-cloned routines + plan_days
+ *      (TKT-0002: PLAN-OWNED model). Manually-created routines are untouched.
+ *   2. Deactivate all existing plans.
+ *   3. Create one plan (active).
+ *   4. For each template routine: create the routine + routine_exercises + plan_day.
+ *      Each cloned routine gets `source_template_id = template.templateKey` so
+ *      future template changes can identify and clean up these rows.
+ *   5. Exercises are resolved by name from the globalExercises snapshot.
  *      Names not found in the catalog are skipped (logged to console).
  *
  * Returns the new plan id.
@@ -338,6 +352,37 @@ export function createPlanFromTemplate(
   for (const ex of Object.values(globalExercises)) {
     if (!ex.deleted_at) {
       nameToId[ex.name] = ex.id;
+    }
+  }
+
+  // TKT-0002: Soft-delete orphan routines and plan_days from the previous
+  // active plan BEFORE deactivating/replacing it. We snapshot routines,
+  // planDays, and plans to keep the logic pure and testable.
+  const routinesSnap = (db.routines$ as any).peek?.() ?? (db.routines$ as any).get?.() ?? {};
+  const planDaysSnap = (db.planDays$ as any).peek?.() ?? (db.planDays$ as any).get?.() ?? {};
+  const plansSnap = (db.plans$ as any).peek?.() ?? (db.plans$ as any).get?.() ?? {};
+
+  // Find the current active plan id (there should be at most one)
+  let oldPlanId: string | null = null;
+  for (const [id, plan] of Object.entries(plansSnap as Record<string, PlanRow>)) {
+    if ((plan as PlanRow).is_active && !(plan as PlanRow).deleted_at) {
+      oldPlanId = id;
+      break;
+    }
+  }
+
+  if (oldPlanId) {
+    const { planDayIds, routineIds } = selectOrphanIds(
+      oldPlanId,
+      routinesSnap,
+      planDaysSnap,
+      plansSnap,
+    );
+    for (const id of planDayIds) {
+      softDelete(db.planDays$, id);
+    }
+    for (const id of routineIds) {
+      softDelete(db.routines$, id);
     }
   }
 
@@ -365,6 +410,7 @@ export function createPlanFromTemplate(
       user_id: userId,
       name: templateRoutine.name,
       notes: null,
+      source_template_id: template.templateKey,
       created_at: now,
       updated_at: now,
       deleted_at: null,

@@ -108,6 +108,12 @@ export interface RoutineRow {
   user_id: string;
   name: string;
   notes: string | null;
+  /**
+   * TKT-0002: Non-null when this routine was cloned from a starter template.
+   * Value is the opaque template key passed to createPlanFromTemplate.
+   * NULL = user-created or pre-migration row (never auto-deleted on template change).
+   */
+  source_template_id: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
